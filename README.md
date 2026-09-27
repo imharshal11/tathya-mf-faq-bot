@@ -120,6 +120,25 @@ Each corpus file has one fact per heading (for example, `## Expense Ratio` follo
 | `DISCLAIMER.md` | Disclaimer text used in the UI |
 | `problem_statement.md` | Project brief |
 
+## Handled Question Types
+
+The assistant handles the following categories of user questions:
+
+| Category | Description | Example |
+|---|---|---|
+| **Scheme-specific facts** | Expense ratio, exit load, SIP, AUM, manager, lock-in, benchmark, riskometer, etc. for a named fund | "What is the expense ratio of HDFC Large Cap Fund?" |
+| **Name variants** | Recognizes common aliases: "HDFC Top 100" → Large Cap, "HDFC Tax Saver" → ELSS, "BAF" → Balanced Advantage | "Who manages BAF?" |
+| **All funds / comparison** | Returns a compact list for all 5 funds when asked "all", "each", "lowest", "highest" | "What are the expense ratios of all funds?" |
+| **Definitions** | Explains mutual fund concepts from the knowledge base | "What is expense ratio?" |
+| **PII protection** | Refuses questions containing PAN, Aadhaar, email, phone, OTP, passwords | "My PAN is ABCDE1234F" |
+| **Advisory refusal** | Declines investment advice, recommendations, "which is better" | "Should I buy HDFC Large Cap?" |
+| **Returns refusal** | Declines performance/returns questions | "What are the returns of HDFC Small Cap?" |
+| **Live data refusal** | Declines NAV/current price queries, directs to scheme page | "What is today's NAV of HDFC Flexi Cap?" |
+| **Plan type clarification** | Notes that only Direct Plan - Growth data is available | "What about the regular plan?" |
+| **Out-of-scope funds** | Declines other AMCs or HDFC schemes not in the 5 | "What about SBI Large Cap Fund?" |
+| **Greetings / help** | Friendly intro with example questions | "Hi", "What can you do?" |
+| **Clarification** | Asks user to specify a fund when a scheme-level fact is asked without naming one | "What is the expense ratio?" |
+
 ## Deployment
 
 - **Platform:** Render Free Plan
@@ -136,6 +155,7 @@ Each corpus file has one fact per heading (for example, `## Expense Ratio` follo
 - **No performance data** (returns, CAGR, NAV history). Such questions are refused with a link to HDFC factsheets.
 - **Capital-gains statement download steps are not covered**, since they are not in the 5 source pages.
 - **No live data** (current NAV, prices).
+- **Covers 5 schemes, Direct Plan - Growth only; no live NAV; AMC-level totals not included.**
 - **Single-session browser chat**, no chat history saved, no login.
 - **Groq free tier has daily rate limits.** If exceeded, answers use the extractive fallback.
 - Extra resource for investors: https://investor.sebi.gov.in/iematerial.html

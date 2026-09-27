@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from src.ingest import load_env, rebuild_index
-from src.retrieve import retrieve_chunks
+from src.retrieve import retrieve_chunks, retrieve_all_funds_fact, is_all_funds_query, get_fact_heading
 from src.generate import generate_answer, extract_answer
 from src.guardrails import check_guardrails, GuardrailResult
 from src.common import get_collection, COLLECTION_NAME
@@ -21,7 +21,7 @@ from src.common import get_collection, COLLECTION_NAME
 
 # Safe defaults (env vars override)
 TOP_K = int(os.getenv("TOP_K", "6"))
-SCORE_THRESHOLD = float(os.getenv("SCORE_THRESHOLD", "0.55"))
+SCORE_THRESHOLD = float(os.getenv("SCORE_THRESHOLD", "0.40"))
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
 
 
@@ -96,10 +96,13 @@ def post_chat(req: ChatRequest) -> ChatResponse:
     # Guardrails first
     guardrail_result = check_guardrails(req.question)
     if guardrail_result.triggered:
+        # For guardrails that don't need a link/date, use empty strings
+        source_url = guardrail_result.source_url if guardrail_result.source_url else ""
+        fetched_date = guardrail_result.fetched_date if guardrail_result.fetched_date else ""
         return ChatResponse(
             answer=guardrail_result.message,
-            source_url=guardrail_result.source_url,
-            fetched_date=guardrail_result.fetched_date,
+            source_url=source_url,
+            fetched_date=fetched_date,
             debug={
                 "threshold_passed": False,
                 "matches": [],
@@ -107,6 +110,63 @@ def post_chat(req: ChatRequest) -> ChatResponse:
                 "fallback": False,
             },
         )
+
+    # Check for all-funds query (comparison or "all funds")
+    if is_all_funds_query(req.question):
+        chunks, scores = retrieve_all_funds_fact(req.question)
+        if chunks:
+            # Build compact list answer from chunks
+            fact_heading = get_fact_heading(req.question) or "the requested fact"
+            parts = []
+            for c in chunks:
+                # Extract the value from the chunk text
+                text = c["text"]
+                import re
+                # Different extraction patterns based on fact type
+                if fact_heading in ("Expense Ratio", "Exit Load"):
+                    # Extract percentage like "1.03%" or "1%"
+                    match = re.search(r"(\d+(?:\.\d+)?%)", text)
+                    value = match.group(1).strip() if match else ""
+                elif fact_heading == "Fund Size (AUM)":
+                    # Extract AUM like "39,933.37 crore" or "39,933.37 crore as of ..."
+                    match = re.search(r"([\d,]+\.?\d*\s*crore)", text, re.IGNORECASE)
+                    if not match:
+                        match = re.search(r"([\d,]+\.?\d*)\s*crore", text, re.IGNORECASE)
+                    value = match.group(1).strip() if match else ""
+                elif fact_heading in ("Minimum SIP", "Minimum First Investment", "Minimum Additional Investment"):
+                    # Extract currency amount like "₹500" or "500"
+                    match = re.search(r"(₹?\s*[\d,]+)", text)
+                    value = match.group(1).strip() if match else ""
+                elif fact_heading in ("Benchmark", "Riskometer", "Fund Manager", "Lock-in Period", "Stamp Duty", "Tax Implication"):
+                    # Extract the sentence after the heading
+                    match = re.search(rf"{re.escape(fact_heading)}:\s*(.+)", text)
+                    value = match.group(1).strip() if match else text[:100]
+                else:
+                    # Generic: extract first percentage/number or first sentence
+                    match = re.search(rf"{re.escape(fact_heading)}:\s*(.+)", text)
+                    if match:
+                        value = match.group(1).strip()[:150]
+                    else:
+                        value = text[:100]
+                short_name = c["scheme_name"].replace("HDFC ", "").replace(" - Direct Growth", "").replace(" - Direct Plan Growth", "").replace("(formerly HDFC Equity Fund)", "").strip()
+                if value:
+                    parts.append(f"{short_name} {value}")
+            answer = f"{fact_heading}: " + ", ".join(parts) + "."
+            # Use first fund's source URL
+            source_url = chunks[0]["source_url"] if chunks else ""
+            fetched_date = chunks[0]["fetched_date"] if chunks else ""
+            return ChatResponse(
+                answer=answer,
+                source_url=source_url,
+                fetched_date=fetched_date,
+                debug={
+                    "threshold_passed": True,
+                    "matches": [{"chunk_id": c["chunk_id"], "score": round(s, 4)} for c, s in zip(chunks, scores)],
+                    "guardrail": None,
+                    "fallback": False,
+                    "all_funds": True,
+                },
+            )
 
     # Retrieve
     chunks, scores = retrieve_chunks(req.question)
@@ -146,9 +206,9 @@ def post_chat(req: ChatRequest) -> ChatResponse:
 
     # Handle Groq response
     if answer.strip() == "NOT_FOUND":
-        # Safety net: if top match score >= 0.80, use extractive fallback
+        # Safety net: if top match score >= 0.70, use extractive fallback
         top_score = scores[0] if scores else 0
-        if top_score >= 0.80:
+        if top_score >= 0.70:
             fallback_answer = extract_answer(chunks[0]["text"], req.question)
             top_chunk = chunks[0]
             return ChatResponse(
