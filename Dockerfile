@@ -20,13 +20,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the project
 COPY . .
 
-# Pre-download ONNX embedding model during build
-RUN python -c "from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2; ONNXMiniLM_L6_V2()" 2>/dev/null || true
-
-# Ensure user owns the app directory (so data/chroma can be written)
-RUN chown -R user:user /home/user/app
+# Ensure user owns the app directory and cache directory (so data/chroma and .cache can be written)
+RUN chown -R user:user /home/user
 
 USER user
+
+# Pre-download ONNX embedding model during build (runs as user, saves to /home/user/.cache/chroma)
+RUN python -c "from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2; ONNXMiniLM_L6_V2()" 2>/dev/null || true
 
 EXPOSE 7860
 
