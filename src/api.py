@@ -117,6 +117,11 @@ def post_chat(req: ChatRequest) -> ChatResponse:
         if chunks:
             # Build compact list answer from chunks
             fact_heading = get_fact_heading(req.question) or "the requested fact"
+            
+            # Check if this is a "lowest" or "highest" query
+            is_lowest = "lowest" in req.question.lower()
+            is_highest = "highest" in req.question.lower()
+            
             parts = []
             for c in chunks:
                 # Extract the value from the chunk text
@@ -148,10 +153,48 @@ def post_chat(req: ChatRequest) -> ChatResponse:
                         value = match.group(1).strip()[:150]
                     else:
                         value = text[:100]
-                short_name = c["scheme_name"].replace("HDFC ", "").replace(" - Direct Growth", "").replace(" - Direct Plan Growth", "").replace("(formerly HDFC Equity Fund)", "").strip()
+                
+                # Use full fund name with plan in brackets
+                scheme_name = c["scheme_name"]
+                full_name = scheme_name.replace(" - Direct Growth", " (Direct Growth)").replace(" - Direct Plan Growth", " (Direct Plan Growth)").replace("(formerly HDFC Equity Fund)", "")
+                full_name = full_name.strip()
+                
                 if value:
-                    parts.append(f"{short_name} {value}")
-            answer = f"{fact_heading}: " + ", ".join(parts) + "."
+                    parts.append((full_name, value))
+            
+            if is_lowest or is_highest:
+                # Sort by value for lowest/highest
+                def parse_value(v):
+                    # Try to extract numeric value for sorting
+                    if "%" in v:
+                        return float(v.replace("%", ""))
+                    elif "crore" in v.lower():
+                        return float(v.replace("crore", "").replace(",", "").strip())
+                    elif "₹" in v:
+                        return float(v.replace("₹", "").replace(",", "").strip())
+                    return 0
+                
+                # Sort parts by value
+                parts_sorted = sorted(parts, key=lambda x: parse_value(x[1]), reverse=is_highest)
+                
+                # Get the top fund(s) - check for ties
+                top_value = parse_value(parts_sorted[0][1])
+                top_funds = [p[0] for p in parts_sorted if parse_value(p[1]) == top_value]
+                
+                if is_lowest:
+                    answer = f"{', '.join(top_funds)} has the lowest {fact_heading.lower()} at {top_value}%."
+                else:
+                    answer = f"{', '.join(top_funds)} has the highest {fact_heading.lower()} at {top_value}%."
+                
+                # Add others in sorted order (skip the top ones already mentioned)
+                others = [f"{name} {val}" for name, val in parts_sorted if parse_value(val) != top_value]
+                if others:
+                    answer += f" Others: {', '.join(others)}."
+            else:
+                # Regular all-funds list
+                parts_str = [f"{name} {val}" for name, val in parts]
+                answer = f"{fact_heading}: " + ", ".join(parts_str) + "."
+            
             # Use first fund's source URL
             source_url = chunks[0]["source_url"] if chunks else ""
             fetched_date = chunks[0]["fetched_date"] if chunks else ""
