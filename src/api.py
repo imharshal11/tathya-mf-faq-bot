@@ -20,10 +20,9 @@ from src.guardrails import check_guardrails, GuardrailResult
 
 # Safe defaults (env vars override)
 TOP_K = int(os.getenv("TOP_K", "6"))
-SCORE_THRESHOLD = float(os.getenv("SCORE_THRESHOLD", "0.55"))
+SCORE_THRESHOLD = float(os.getenv("SCORE_THRESHOLD", "0.35"))
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "mf_faq")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 
 
 def ensure_index() -> None:

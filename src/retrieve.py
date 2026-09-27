@@ -8,10 +8,10 @@ from pathlib import Path
 
 import chromadb
 from dotenv import load_dotenv
+from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
 
 from src.ingest import (
     get_chroma_client,
-    get_embedding_function,
     collection_name,
     chroma_path,
     load_env,
@@ -54,7 +54,7 @@ def retrieve_chunks(query: str, top_k: int | None = None) -> tuple[list[dict], l
     try:
         coll = client.get_collection(
             name=collection_name(),
-            embedding_function=get_embedding_function(),
+            embedding_function=ONNXMiniLM_L6_V2(),
         )
     except Exception:
         return [], []

@@ -13,9 +13,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Install CPU-only torch first (smaller image)
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -23,8 +20,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the project
 COPY . .
 
-# Pre-download embedding model during build
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')" 2>/dev/null || true
+# Pre-download ONNX embedding model during build
+RUN python -c "from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2; ONNXMiniLM_L6_V2()" 2>/dev/null || true
 
 # Ensure user owns the app directory (so data/chroma can be written)
 RUN chown -R user:user /home/user/app
@@ -33,4 +30,4 @@ USER user
 
 EXPOSE 7860
 
-CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["sh", "-c", "uvicorn src.api:app --host 0.0.0.0 --port ${PORT:-7860}"]

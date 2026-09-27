@@ -36,7 +36,7 @@ A Retrieval-Augmented Generation (RAG) chatbot that answers factual questions ab
 
 | Component | Choice |
 |---|---|
-| Embedding model | `sentence-transformers/all-MiniLM-L6-v2` (local, from Hugging Face) |
+| Embedding model | `all-MiniLM-L6-v2` (ONNX via ChromaDB, runs on CPU without PyTorch) |
 | Vector database | ChromaDB (local, cosine similarity) |
 | LLM | Groq, `openai/gpt-oss-20b` (temperature 0) |
 | Backend | Python, FastAPI |
@@ -119,6 +119,14 @@ Each corpus file has one fact per heading (for example, `## Expense Ratio` follo
 | `SAMPLE_QA.md` | 10 sample queries with actual answers and links |
 | `DISCLAIMER.md` | Disclaimer text used in the UI |
 | `problem_statement.md` | Project brief |
+
+## Deployment
+
+- **Platform:** Render Free Plan
+- **Memory:** 512 MB RAM
+- **Behavior:** Service sleeps after 15 minutes of inactivity; ~1 minute wake-up time on first request after sleep
+- **Port:** Uses `PORT` environment variable (Render default), fallback to 7860
+- **Model:** ONNX embedding model pre-downloaded at build time for fast cold starts
 
 ## Known Limits
 

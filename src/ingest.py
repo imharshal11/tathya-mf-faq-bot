@@ -3,7 +3,7 @@ import re
 import sys
 import chromadb
 from chromadb.config import Settings
-from sentence_transformers import SentenceTransformer
+from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
 from pathlib import Path
 
 # UTF-8 safe console printing
@@ -13,7 +13,6 @@ if hasattr(sys.stdout, "reconfigure"):
 CHROMA_PATH = os.getenv("CHROMA_PATH", "data/chroma")
 CORPUS_PATH = os.getenv("CORPUS_PATH", "corpus")
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "mf_faq")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 
 FRONT_MATTER_PATTERN = re.compile(r"<!--\s*scheme_name:\s*(.+?)\s*-->")
 CATEGORY_PATTERN = re.compile(r"<!--\s*category:\s*(.+?)\s*-->")
@@ -113,8 +112,7 @@ def get_chroma_client():
 
 def get_embedding_function():
     """Get the embedding function for the configured model."""
-    from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
-    return SentenceTransformerEmbeddingFunction(model_name=EMBEDDING_MODEL)
+    return ONNXMiniLM_L6_V2()
 
 
 def collection_name() -> str:
@@ -159,9 +157,6 @@ def rebuild_index() -> dict:
     if not md_files:
         return {"status": "error", "message": "No .md files found in corpus/"}
 
-    print(f"Loading embedding model: {EMBEDDING_MODEL}")
-    model = SentenceTransformer(EMBEDDING_MODEL)
-
     print(f"Connecting to ChromaDB at: {CHROMA_PATH}")
 
     all_chunks = []
@@ -178,11 +173,9 @@ def rebuild_index() -> dict:
         return {"status": "error", "message": "No chunks generated."}
 
     print(f"\nTotal chunks: {len(all_chunks)}")
-    print("Embedding chunks...")
+    print("Adding chunks to collection (embedding happens automatically)...")
 
     texts = [c["text"] for c in all_chunks]
-    embeddings = model.encode(texts, show_progress_bar=True, batch_size=32).tolist()
-
     ids = [f"{c['scheme_name'].lower().replace(' ', '-').replace('(', '').replace(')', '').replace('.', '')}-{i:03d}" for i, c in enumerate(all_chunks)]
     metadatas = [{
         "chunk_id": ids[i],
@@ -193,7 +186,7 @@ def rebuild_index() -> dict:
         "heading": c["heading"],
     } for i, c in enumerate(all_chunks)]
 
-    collection.add(ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)
+    collection.add(ids=ids, documents=texts, metadatas=metadatas)
 
     print(f"\nIngestion complete. Collection count: {collection.count()}")
 
