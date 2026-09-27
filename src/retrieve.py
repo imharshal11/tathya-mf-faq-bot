@@ -48,7 +48,7 @@ def retrieve_chunks(query: str, top_k: int | None = None) -> tuple[list[dict], l
     """Return (chunks, scores) for the query. Scores are similarities in [0,1]."""
     load_env()
     k = top_k or int(os.getenv("TOP_K", "6"))
-    threshold = float(os.getenv("SCORE_THRESHOLD", "0.35"))
+    threshold = float(os.getenv("SCORE_THRESHOLD", "0.55"))
 
     client = get_chroma_client()
     try:

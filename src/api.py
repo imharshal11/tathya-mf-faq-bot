@@ -20,7 +20,7 @@ from src.guardrails import check_guardrails, GuardrailResult
 
 # Safe defaults (env vars override)
 TOP_K = int(os.getenv("TOP_K", "6"))
-SCORE_THRESHOLD = float(os.getenv("SCORE_THRESHOLD", "0.35"))
+SCORE_THRESHOLD = float(os.getenv("SCORE_THRESHOLD", "0.55"))
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "mf_faq")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
 
