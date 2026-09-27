@@ -1,7 +1,7 @@
 .venv
 venv
-data
 .env
+data
 __pycache__
 *.pyc
 *.pyo
@@ -11,14 +11,7 @@ __pycache__
 .git
 tests
 scripts
-*.md
-!README.md
-!DISCLAIMER.md
-!SOURCE_LIST.md
-!SAMPLE_QA.md
 Docx
-*.html
-*.txt
 *.log
 *.sqlite3
 *.sqlite3-*
