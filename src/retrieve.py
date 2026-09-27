@@ -120,7 +120,7 @@ def get_fact_heading(query: str) -> str | None:
     return None
 
 
-def retrieve_chunks(query: str, top_k: int | None = None) -> tuple[list[dict], list[float]]:
+def retrieve_chunks(query: str, top_k: int | None = None, scheme_name: str | None = None) -> tuple[list[dict], list[float]]:
     """Return (chunks, scores) for the query. Scores are similarities in [0,1]."""
     load_env()
     k = top_k or int(os.getenv("TOP_K", "6"))
@@ -131,19 +131,20 @@ def retrieve_chunks(query: str, top_k: int | None = None) -> tuple[list[dict], l
     except Exception:
         return [], []
 
-    # Detect scheme filter
-    scheme_name = detect_scheme(query)
+    # Detect scheme filter (use explicit scheme_name if provided, otherwise auto-detect)
+    auto_scheme = detect_scheme(query)
+    effective_scheme = scheme_name or auto_scheme
     all_funds_query = is_all_funds_query(query)
     definitional_query = is_definitional_query(query)
 
     # For definitional queries with no scheme, search mf-basics
-    if definitional_query and not scheme_name and not all_funds_query:
+    if definitional_query and not effective_scheme and not all_funds_query:
         where_filter = {"scheme_name": "Mutual Fund Basics"}
     # For all-funds queries, we'll fetch per scheme below
     elif all_funds_query:
         where_filter = None
     else:
-        where_filter = {"scheme_name": scheme_name} if scheme_name else None
+        where_filter = {"scheme_name": effective_scheme} if effective_scheme else None
 
     results = coll.query(
         query_texts=[query],

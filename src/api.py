@@ -1,8 +1,9 @@
-"""FastAPI app with /chat, /index, /health endpoints. Serves web UI at root."""
+"""FastAPI app with /chat, /index, /health, /funds endpoints. Serves web UI at root."""
 
 from __future__ import annotations
 
 import os
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -16,7 +17,7 @@ from src.ingest import load_env, rebuild_index
 from src.retrieve import retrieve_chunks, retrieve_all_funds_fact, is_all_funds_query, get_fact_heading
 from src.generate import generate_answer, extract_answer
 from src.guardrails import check_guardrails, GuardrailResult
-from src.common import get_collection, COLLECTION_NAME
+from src.common import get_collection, COLLECTION_NAME, CORPUS_PATH
 
 
 # Safe defaults (env vars override)
@@ -53,7 +54,23 @@ app.add_middleware(
 # Serve static files (web UI) - mounted AFTER API routes so they don't override
 WEB_DIR = Path(__file__).parent.parent / "web"
 if WEB_DIR.exists():
-    app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
+    # Serve brand assets
+    brand_dir = WEB_DIR / "brand"
+    if brand_dir.exists():
+        app.mount("/brand", StaticFiles(directory=brand_dir), name="brand")
+    
+    # Serve individual files at root level
+    @app.get("/styles.css")
+    async def styles_css():
+        return FileResponse(WEB_DIR / "styles.css") if (WEB_DIR / "styles.css").exists() else FileResponse(WEB_DIR / "index.html")
+    
+    @app.get("/app.js")
+    async def app_js():
+        return FileResponse(WEB_DIR / "app.js") if (WEB_DIR / "app.js").exists() else FileResponse(WEB_DIR / "index.html")
+    
+    @app.get("/manifest.json")
+    async def manifest_json():
+        return FileResponse(WEB_DIR / "manifest.json") if (WEB_DIR / "manifest.json").exists() else FileResponse(WEB_DIR / "index.html")
 
     @app.get("/")
     async def root():
@@ -62,6 +79,7 @@ if WEB_DIR.exists():
 
 class ChatRequest(BaseModel):
     question: str
+    scheme: str | None = None
 
 
 class ChatResponse(BaseModel):
@@ -69,6 +87,27 @@ class ChatResponse(BaseModel):
     source_url: str
     fetched_date: str
     debug: dict
+
+
+class FundManager(BaseModel):
+    name: str
+    since: str
+
+
+class FundResponse(BaseModel):
+    full_name: str
+    short_name: str
+    category: str
+    source_url: str
+    fetched_date: str
+    expense_ratio: str
+    exit_load: str
+    min_sip: str
+    lock_in: str | None
+    riskometer: str
+    benchmark: str
+    aum: str
+    fund_managers: list[FundManager]
 
 
 @app.post("/index")
@@ -83,6 +122,154 @@ def health() -> dict:
     return {"ok": True, "index_exists": index_exists}
 
 
+def _parse_fund_file(filepath: Path) -> FundResponse:
+    """Parse a single fund corpus file and return FundResponse."""
+    content = filepath.read_text(encoding="utf-8")
+    
+    # Extract front matter
+    scheme_name_match = re.search(r"<!--\s*scheme_name:\s*(.+?)\s*-->", content)
+    category_match = re.search(r"<!--\s*category:\s*(.+?)\s*-->", content)
+    source_url_match = re.search(r"<!--\s*source_url:\s*(.+?)\s*-->", content)
+    fetched_date_match = re.search(r"<!--\s*fetched_date:\s*(.+?)\s*-->", content)
+    
+    scheme_name = scheme_name_match.group(1).strip() if scheme_name_match else ""
+    category = category_match.group(1).strip() if category_match else ""
+    source_url = source_url_match.group(1).strip() if source_url_match else ""
+    fetched_date = fetched_date_match.group(1).strip() if fetched_date_match else ""
+    
+    # Parse full name and short name
+    # scheme_name like "HDFC Large Cap Fund - Direct Growth" -> full_name "HDFC Large Cap Fund (Direct Growth)", short_name "Large Cap"
+    full_name = scheme_name.replace(" - Direct Growth", " (Direct Growth)").replace(" - Direct Plan Growth", " (Direct Growth)")
+    full_name = full_name.replace("(formerly HDFC Equity Fund)", "").strip()
+    full_name = " ".join(full_name.split())
+    
+    # Short name from category
+    short_name = category.replace(" (Hybrid)", "")
+    
+    # Parse sections
+    sections = {}
+    heading_pattern = re.compile(r"^##\s+(.+)$", re.MULTILINE)
+    matches = list(heading_pattern.finditer(content))
+    for i, match in enumerate(matches):
+        heading = match.group(1).strip()
+        start = match.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(content)
+        text = content[start:end].strip()
+        sections[heading] = text
+    
+    # Extract expense ratio
+    expense_ratio = ""
+    if "Expense Ratio" in sections:
+        match = re.search(r"(\d+(?:\.\d+)?%)", sections["Expense Ratio"])
+        expense_ratio = match.group(1) if match else ""
+    
+    # Extract exit load
+    exit_load = ""
+    if "Exit Load" in sections:
+        text = sections["Exit Load"]
+        if "nil" in text.lower() or "zero" in text.lower():
+            exit_load = "Nil"
+        else:
+            match = re.search(r"(\d+% if .+?)(?:\.|$)", text, re.IGNORECASE)
+            if match:
+                exit_load = match.group(1).strip()
+            else:
+                # Fallback
+                match = re.search(r"(\d+%.+?)(?:\.|$)", text)
+                exit_load = match.group(1).strip() if match else text[:100]
+    
+    # Extract min SIP
+    min_sip = ""
+    if "Minimum SIP" in sections:
+        match = re.search(r"(₹?\s*[\d,]+)", sections["Minimum SIP"])
+        min_sip = match.group(1).strip() if match else ""
+    
+    # Extract lock-in
+    lock_in = None
+    if "Lock-in Period" in sections:
+        text = sections["Lock-in Period"]
+        match = re.search(r"(\d+\s+years?.+?)(?:\.|$)", text, re.IGNORECASE)
+        if match:
+            lock_in = match.group(1).strip()
+        else:
+            lock_in = text[:100]
+    
+    # Extract riskometer
+    riskometer = ""
+    if "Riskometer" in sections:
+        match = re.search(r"risk level of .+? is (.+?)(?:\.|$)", sections["Riskometer"], re.IGNORECASE)
+        riskometer = match.group(1).strip() if match else sections["Riskometer"][:100]
+    
+    # Extract benchmark
+    benchmark = ""
+    if "Benchmark" in sections:
+        match = re.search(r"benchmark of .+? is (.+?)(?:\.|$)", sections["Benchmark"], re.IGNORECASE)
+        benchmark = match.group(1).strip() if match else sections["Benchmark"][:100]
+    
+    # Extract AUM
+    aum = ""
+    if "Fund Size (AUM)" in sections:
+        match = re.search(r"([\d,]+\.?\d*\s*crore)", sections["Fund Size (AUM)"], re.IGNORECASE)
+        aum = match.group(1).strip() if match else ""
+    
+    # Extract fund managers
+    fund_managers = []
+    if "Fund Manager" in sections:
+        text = sections["Fund Manager"]
+        # Pattern: Name (since Month Year) - match only the manager names
+        # The text format: "The fund managers of HDFC Large Cap Fund - Direct Growth are Rahul Baijal (since Jul 2022) and Dhruv Muchhal (since Jun 2023)."
+        # We want to match "Rahul Baijal" and "Dhruv Muchhal"
+        pattern = r"(?:^|[,\sand])([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*\(since\s+([A-Za-z]+\s+\d{4})\)"
+        for match in re.finditer(pattern, text):
+            name = match.group(1).strip()
+            since = match.group(2).strip()
+            fund_managers.append(FundManager(name=name, since=since))
+    
+    # Format fetched_date from YYYY-MM-DD to DD Mon YYYY
+    formatted_date = fetched_date
+    try:
+        from datetime import datetime
+        dt = datetime.strptime(fetched_date, "%Y-%m-%d")
+        formatted_date = dt.strftime("%d %b %Y")
+    except:
+        pass
+    
+    return FundResponse(
+        full_name=full_name,
+        short_name=short_name,
+        category=category,
+        source_url=source_url,
+        fetched_date=formatted_date,
+        expense_ratio=expense_ratio,
+        exit_load=exit_load,
+        min_sip=min_sip,
+        lock_in=lock_in,
+        riskometer=riskometer,
+        benchmark=benchmark,
+        aum=aum,
+        fund_managers=fund_managers,
+    )
+
+
+@app.get("/funds", response_model=list[FundResponse])
+def get_funds() -> list[FundResponse]:
+    """Read the 5 corpus files and return per fund details."""
+    corpus_dir = Path(CORPUS_PATH)
+    fund_files = [
+        "hdfc-large-cap.md",
+        "hdfc-flexi-cap.md",
+        "hdfc-elss.md",
+        "hdfc-small-cap.md",
+        "hdfc-balanced-advantage.md",
+    ]
+    funds = []
+    for fname in fund_files:
+        filepath = corpus_dir / fname
+        if filepath.exists():
+            funds.append(_parse_fund_file(filepath))
+    return funds
+
+
 @app.post("/chat", response_model=ChatResponse)
 def post_chat(req: ChatRequest) -> ChatResponse:
     # Check if index exists
@@ -94,7 +281,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
         )
 
     # Guardrails first
-    guardrail_result = check_guardrails(req.question)
+    guardrail_result = check_guardrails(req.question, explicit_scheme=req.scheme)
     if guardrail_result.triggered:
         # For guardrails that don't need a link/date, use empty strings
         source_url = guardrail_result.source_url if guardrail_result.source_url else ""
@@ -110,6 +297,14 @@ def post_chat(req: ChatRequest) -> ChatResponse:
                 "fallback": False,
             },
         )
+
+    # Determine scheme filter: explicit scheme param overrides auto-detection if no fund named in question
+    explicit_scheme = req.scheme
+    auto_scheme = None
+    if not explicit_scheme:
+        from src.retrieve import detect_scheme
+        auto_scheme = detect_scheme(req.question)
+    scheme_name = explicit_scheme or auto_scheme
 
     # Check for all-funds query (comparison or "all funds")
     if is_all_funds_query(req.question):
@@ -214,7 +409,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
             )
 
     # Retrieve
-    chunks, scores = retrieve_chunks(req.question)
+    chunks, scores = retrieve_chunks(req.question, scheme_name=scheme_name)
     threshold_passed = len(chunks) > 0
 
     if not threshold_passed:

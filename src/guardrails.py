@@ -292,7 +292,7 @@ def check_clarify_needed(text: str, scheme_name: str | None) -> bool:
     return False
 
 
-def check_guardrails(question: str) -> GuardrailResult:
+def check_guardrails(question: str, explicit_scheme: str | None = None) -> GuardrailResult:
     """Run all guardrails in order. Returns GuardrailResult."""
     # 1. PII check
     pii_found, pii_type = check_pii(question)
@@ -327,9 +327,9 @@ def check_guardrails(question: str) -> GuardrailResult:
 
     # 4. Live data check
     if check_live_data(question):
-        # Try to detect scheme for link
+        # Try to detect scheme for link (use explicit if provided)
         from src.retrieve import detect_scheme
-        scheme_name = detect_scheme(question)
+        scheme_name = explicit_scheme or detect_scheme(question)
         source_url = HDFC_FACTSHEET_URL
         if scheme_name:
             # Find the source URL from our corpus
@@ -391,7 +391,7 @@ def check_guardrails(question: str) -> GuardrailResult:
 
     # 9. Clarify check (no scheme named but asks scheme-level fact)
     from src.retrieve import detect_scheme
-    scheme_name = detect_scheme(question)
+    scheme_name = explicit_scheme or detect_scheme(question)
     if check_clarify_needed(question, scheme_name):
         return GuardrailResult(
             triggered=True,
