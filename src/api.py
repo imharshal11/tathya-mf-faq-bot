@@ -11,7 +11,7 @@ from src.guardrails import check_guardrails, GuardrailResult
 
 load_env()
 
-app = FastAPI(title="HDFC Mutual Fund FAQ Assistant")
+app = FastAPI(title="Tathya — HDFC Mutual Fund FAQ Assistant")
 
 app.add_middleware(
     CORSMiddleware,

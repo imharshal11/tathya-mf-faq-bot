@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HDFC Mutual Fund FAQ Assistant</title>
+  <title>Tathya — HDFC Mutual Fund FAQ Assistant</title>
   <style>
     * { box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; background: #f5f5f5; min-height: 100vh; display: flex; flex-direction: column; }
     header { background: #fff; border-bottom: 1px solid #e0e0e0; padding: 16px 24px; }
     h1 { margin: 0; font-size: 1.25rem; color: #1a1a1a; }
+    .tagline { font-size: 0.8rem; color: #666; margin-top: 4px; }
     .status { font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; margin-top: 8px; display: inline-block; }
     .status.ok { background: #e8f5e9; color: #2e7d32; }
     .status.err { background: #ffebee; color: #c62828; }
@@ -77,12 +78,13 @@
 </head>
 <body>
   <header>
-    <h1>HDFC Mutual Fund FAQ Assistant</h1>
+    <h1>Tathya — HDFC Mutual Fund FAQ Assistant</h1>
+    <p class="tagline">Mutual fund facts, with proof.</p>
     <span id="status" class="status err">Checking API...</span>
   </header>
   <main>
     <div class="welcome">
-      <div class="welcome-title">Welcome to the HDFC Mutual Fund FAQ Assistant.</div>
+      <div class="welcome-title">Welcome to Tathya.</div>
       <div class="welcome-text">Ask me facts about 5 HDFC Mutual Fund schemes.</div>
     </div>
 

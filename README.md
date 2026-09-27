@@ -1,4 +1,6 @@
-# HDFC Mutual Fund FAQ Assistant
+# Tathya — HDFC Mutual Fund FAQ Assistant
+
+Tathya (Hindi/Sanskrit for "fact") is a facts-only RAG chatbot. Every answer comes with its source.
 
 A Retrieval-Augmented Generation (RAG) chatbot that answers factual questions about 5 HDFC Mutual Fund schemes using only public Groww pages. Every answer includes one source link and a last-updated date. The assistant provides facts only and never gives investment advice.
 

@@ -1,4 +1,4 @@
-# Sample Q&A
+# Tathya — Sample Q&A
 
 The following 10 queries were run against the live API at `http://127.0.0.1:8000/chat` on 2026-09-27.
 
