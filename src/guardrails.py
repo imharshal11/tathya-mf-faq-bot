@@ -83,6 +83,13 @@ LIVE_DATA_PHRASES = [
     r"right\s+now",
 ]
 
+# Phrases that should NOT trigger returns guardrail (exceptions)
+RETURNS_EXCEPTIONS = [
+    r"\bperformance\s+benchmark\b",
+    r"^benchmark\b",
+    r"\bbenchmark\s+(of|for)\b",
+]
+
 
 PLAN_TYPE_PHRASES = [
     r"regular\s+plan",
@@ -97,7 +104,7 @@ OTHER_AMC_KEYWORDS = [
 ]
 
 OTHER_HDFC_SCHEMES = [
-    "mid cap", "focused", "index", "liquid", "arbitrage", "corporate bond",
+    "mid cap", "focused", "index fund", "liquid", "arbitrage", "corporate bond",
     "banking", "psu", "infrastructure", "technology", "pharma", "healthcare",
     "consumption", "esg", "dividend yield",
 ]
@@ -141,6 +148,10 @@ def check_advisory(text: str) -> bool:
 def check_returns(text: str) -> bool:
     """Check for returns/performance phrases."""
     text_lower = text.lower()
+    # Check exceptions first - if any exception matches, don't trigger returns
+    for exception in RETURNS_EXCEPTIONS:
+        if re.search(exception, text_lower):
+            return False
     for phrase in RETURNS_PHRASES:
         if re.search(phrase, text_lower):
             return True
@@ -148,7 +159,7 @@ def check_returns(text: str) -> bool:
 
 
 def check_live_data(text: str) -> bool:
-    """Check for live data requests."""
+    """Check for live data requests. Use whole-word matching."""
     text_lower = text.lower()
     for phrase in LIVE_DATA_PHRASES:
         if re.search(phrase, text_lower):
@@ -157,7 +168,7 @@ def check_live_data(text: str) -> bool:
 
 
 def check_plan_type(text: str) -> bool:
-    """Check for plan type queries (regular, IDCW, dividend)."""
+    """Check for plan type queries (regular, IDCW, dividend). Use whole-word matching."""
     text_lower = text.lower()
     for phrase in PLAN_TYPE_PHRASES:
         if re.search(phrase, text_lower):
@@ -174,12 +185,53 @@ def check_other_funds(text: str) -> bool:
     for scheme in OTHER_HDFC_SCHEMES:
         if re.search(rf"\b{re.escape(scheme)}\b", text_lower):
             return True
+    # Also check for "hdfc <name> fund" where name is not our 5
+    # This catches things like "hdfc mid cap fund", "hdfc focused fund", etc.
+    our_fund_keywords = [
+        "large cap", "flexi cap", "equity fund", "elss", "tax saver",
+        "small cap", "balanced advantage", "baf", "top 100", "top100",
+        "hdfc top", "largecap", "large-cap", "flexicap", "flexi-cap",
+        "taxsaver", "smallcap", "small-cap", "prudence",
+    ]
+    # Check if "hdfc" followed by a fund-like name that's not in our list
+    hdfc_match = re.search(r"\bhdfc\s+(.+?)\s+fund\b", text_lower)
+    if hdfc_match:
+        fund_name = hdfc_match.group(1).strip()
+        # Check if this fund name matches any of our known funds
+        is_our_fund = False
+        for kw in our_fund_keywords:
+            if re.search(rf"\b{re.escape(kw)}\b", fund_name):
+                is_our_fund = True
+                break
+        if not is_our_fund:
+            return True
     return False
 
 
 def check_greeting(text: str) -> bool:
-    """Check for greetings or help requests."""
+    """Check for greetings or help requests. Only trigger on short messages (~5 words or fewer) that don't name a fund or ask a fund fact."""
     text_lower = text.lower().strip()
+    words = text_lower.split()
+    
+    # Check if it's a short message (5 words or fewer)
+    if len(words) > 5:
+        return False
+    
+    # Check if it contains a fund name or fund fact keyword - if so, not a greeting
+    from src.retrieve import detect_scheme, is_all_funds_query
+    scheme_name = detect_scheme(text_lower)
+    if scheme_name or is_all_funds_query(text_lower):
+        return False
+    
+    # Check for fund fact keywords
+    fact_keywords = ["expense", "aum", "exit load", "sip", "minimum", "benchmark", 
+                     "risk", "manager", "lock-in", "lock in", "stamp duty", "tax",
+                     "nav", "returns", "performance", "aum", "fund size"]
+    for kw in fact_keywords:
+        if re.search(rf"\b{re.escape(kw)}\b", text_lower):
+            return False
+    
+    # Now check greeting patterns
     for pattern in GREETING_PATTERNS:
         if re.search(pattern, text_lower):
             return True
