@@ -114,10 +114,15 @@ GREETING_PATTERNS = [
     r"^hi\b",
     r"^hello\b",
     r"^hey\b",
-    r"^thanks\b",
-    r"^thank you\b",
     r"^what\s+can\s+you\s+do\b",
     r"^help\b",
+]
+
+THANKS_PATTERNS = [
+    r"^thanks?\b",
+    r"^thank\s+you\b",
+    r"^thx\b",
+    r"^ok\s+thanks?\b",
 ]
 
 
@@ -238,6 +243,36 @@ def check_greeting(text: str) -> bool:
     return False
 
 
+def check_thanks(text: str) -> bool:
+    """Check for thank-you messages. Only trigger on short messages (~5 words or fewer) that don't name a fund or ask a fund fact."""
+    text_lower = text.lower().strip()
+    words = text_lower.split()
+    
+    # Check if it's a short message (5 words or fewer)
+    if len(words) > 5:
+        return False
+    
+    # Check if it contains a fund name or fund fact keyword - if so, not a thanks
+    from src.retrieve import detect_scheme, is_all_funds_query
+    scheme_name = detect_scheme(text_lower)
+    if scheme_name or is_all_funds_query(text_lower):
+        return False
+    
+    # Check for fund fact keywords
+    fact_keywords = ["expense", "aum", "exit load", "sip", "minimum", "benchmark", 
+                     "risk", "manager", "lock-in", "lock in", "stamp duty", "tax",
+                     "nav", "returns", "performance", "aum", "fund size"]
+    for kw in fact_keywords:
+        if re.search(rf"\b{re.escape(kw)}\b", text_lower):
+            return False
+    
+    # Now check thanks patterns
+    for pattern in THANKS_PATTERNS:
+        if re.search(pattern, text_lower):
+            return True
+    return False
+
+
 def check_clarify_needed(text: str, scheme_name: str | None) -> bool:
     """Check if question asks a scheme-level fact but no scheme detected."""
     if scheme_name:
@@ -344,7 +379,17 @@ def check_guardrails(question: str) -> GuardrailResult:
             fetched_date="",
         )
 
-    # 8. Clarify check (no scheme named but asks scheme-level fact)
+    # 8. Thanks check
+    if check_thanks(question):
+        return GuardrailResult(
+            triggered=True,
+            type="thanks",
+            message="You're welcome! Ask me anything else about the 5 HDFC funds.",
+            source_url="",
+            fetched_date="",
+        )
+
+    # 9. Clarify check (no scheme named but asks scheme-level fact)
     from src.retrieve import detect_scheme
     scheme_name = detect_scheme(question)
     if check_clarify_needed(question, scheme_name):

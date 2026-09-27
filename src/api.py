@@ -156,8 +156,10 @@ def post_chat(req: ChatRequest) -> ChatResponse:
                 
                 # Use full fund name with plan in brackets
                 scheme_name = c["scheme_name"]
-                full_name = scheme_name.replace(" - Direct Growth", " (Direct Growth)").replace(" - Direct Plan Growth", " (Direct Plan Growth)").replace("(formerly HDFC Equity Fund)", "")
-                full_name = full_name.strip()
+                # Clean up display name: replace plan suffix with brackets, remove "formerly HDFC Equity Fund", collapse spaces
+                full_name = scheme_name.replace(" - Direct Growth", " (Direct Growth)").replace(" - Direct Plan Growth", " (Direct Growth)").replace("(formerly HDFC Equity Fund)", "")
+                # Collapse multiple spaces to single space
+                full_name = " ".join(full_name.split())
                 
                 if value:
                     parts.append((full_name, value))
