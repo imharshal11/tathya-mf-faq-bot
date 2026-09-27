@@ -1,0 +1,98 @@
+Mutual Fund FAQ Assistant — RAG Chatbot
+1. Project Overview
+
+Build a small Retrieval-Augmented Generation (RAG) chatbot that answers factual questions about selected mutual fund schemes, using only official public pages. Every answer must include one source link. The assistant provides facts only and never gives investment advice.
+
+2. Problem Statement
+
+Retail investors comparing mutual fund schemes, and support or content teams handling customer queries, repeatedly look up the same facts: expense ratio, exit load, minimum SIP, ELSS lock-in, riskometer, benchmark, and how to download statements. This information is spread across multiple pages and documents. The goal is a simple assistant that returns accurate, source-backed answers instantly while staying strictly factual and non-advisory.
+
+3. Target Users
+Retail users comparing schemes.
+Support and content teams answering repetitive mutual fund questions.
+4. Scope
+
+Corpus rule: One AMC and 3–5 schemes under it (e.g., one large-cap, one flexi-cap, one ELSS).
+
+AMC selected: HDFC Mutual Fund
+
+Schemes selected (5):
+
+Category	Scheme	Source URL
+Large Cap	HDFC Large Cap Fund – Direct Growth	https://groww.in/mutual-funds/hdfc-large-cap-fund-direct-growth
+Flexi Cap	HDFC Flexi Cap Fund (formerly HDFC Equity Fund) – Direct Growth	https://groww.in/mutual-funds/hdfc-equity-fund-direct-growth
+ELSS	HDFC ELSS Tax Saver Fund – Direct Plan Growth	https://groww.in/mutual-funds/hdfc-elss-tax-saver-fund-direct-plan-growth
+Small Cap	HDFC Small Cap Fund – Direct Growth	https://groww.in/mutual-funds/hdfc-small-cap-fund-direct-growth
+Balanced Advantage (Hybrid)	HDFC Balanced Advantage Fund – Direct Growth	https://groww.in/mutual-funds/hdfc-balanced-advantage-fund-direct-growth
+
+Source types to collect (public pages from AMC, SEBI, or AMFI):
+
+Factsheets
+KIM (Key Information Memorandum) and SID (Scheme Information Document)
+Scheme FAQs
+Fee and charges pages
+Riskometer and benchmark notes
+Statement and tax-document guides
+
+5. Functional Requirements
+
+The FAQ assistant must:
+
+Answer factual queries only, for example:
+"Expense ratio of [scheme]?"
+"ELSS lock-in?"
+"Minimum SIP?"
+"Exit load?"
+"Riskometer / benchmark?"
+"How to download capital-gains statement?"
+Show one clear citation link in every answer.
+Refuse opinionated or portfolio questions (e.g., "Should I buy/sell?") with a polite, facts-only message and a relevant educational link.
+
+Tiny UI must include:
+
+A welcome line.
+Three example questions.
+The note: "Facts-only. No investment advice."
+6. Key Constraints
+Public sources only: No screenshots of the app back-end. No third-party blogs as sources.
+No PII: Do not accept or store PAN, Aadhaar, account numbers, OTPs, emails, or phone numbers.
+No performance claims: Do not compute or compare returns. If asked, link to the official factsheet.
+Clarity and transparency: Answers must be 3 sentences or fewer and include "Last updated from sources: [date]".
+7. Technical Architecture
+
+The end output is a RAG chatbot. Each RAG stage is distinct, and the architecture must follow all stages of both pipelines.
+
+Stage A — Data Ingestion Pipeline
+
+Loading: Load content from the source pages.
+Chunking: Split content into chunks. Cursor (the coding agent) will decide the chunking strategy based on the structure of the data.
+Embedding: Convert chunks into vectors using sentence-transformers/all-MiniLM-L6-v2.
+Store Vector Data: Save vectors with metadata (scheme name, source URL, last-updated date) in ChromaDB.
+
+Stage B — Data Retrieval Pipeline
+
+Query check: Screen the question for PII and advisory intent; refuse if either is found.
+Retrieval: Embed the query and fetch the most relevant chunks from ChromaDB.
+Response generation: Use an LLM to write a short answer grounded only in the retrieved chunks.
+Response formatting: Attach one source link and "Last updated from sources: [date]".
+8. Tech Stack
+Component	Choice
+Embedding model	sentence-transformers/all-MiniLM-L6-v2
+Vector database	ChromaDB
+Chunking strategy	Decided by Cursor based on the data
+9. Deliverables
+Working prototype link (app or notebook), or a demo video of 3 minutes or less if hosting isn't possible.
+Source list (CSV or MD) of the 5 URLs used.
+README with setup steps, scope (AMC and schemes), and known limits.
+Sample Q&A file with 5–10 queries, the assistant's answers, and links.
+Disclaimer snippet used in the UI (facts-only, no advice).
+10. Success Criteria
+Every answer is factually correct and traceable to its cited source.
+Every answer includes one source link and a last-updated date.
+Advisory and PII-containing queries are consistently refused.
+Answers stay within 3 sentences.
+11. Note on Sources
+
+The brief asks for official AMC, SEBI, or AMFI sources, while the 5 provided URLs are Groww pages. This will be recorded under "Known limits" in the README, with the option to add matching HDFC Mutual Fund official pages to the corpus.
+
+(End of file - total 96 lines)

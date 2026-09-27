@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Groww RAG Bot</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; background: #f5f5f5; min-height: 100vh; display: flex; flex-direction: column; }
+    header { background: #fff; border-bottom: 1px solid #e0e0e0; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+    h1 { margin: 0; font-size: 1.25rem; color: #1a1a1a; }
+    .status { font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; }
+    .status.ok { background: #e8f5e9; color: #2e7d32; }
+    .status.err { background: #ffebee; color: #c62828; }
+    main { flex: 1; display: flex; flex-direction: column; max-width: 1100px; width: 100%; margin: 0 auto; padding: 24px 16px; }
+    .disclaimer { background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 12px 16px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 16px; }
+    .layout { display: flex; gap: 16px; flex: 1; }
+    .chat-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .chat-container { flex: 1; display: flex; flex-direction: column; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
+    .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; max-height: 500px; }
+    .msg { display: flex; flex-direction: column; gap: 4px; max-width: 85%; }
+    .msg.user { align-self: flex-end; }
+    .msg.bot { align-self: flex-start; }
+    .msg-content { padding: 10px 14px; border-radius: 12px; line-height: 1.5; }
+    .msg.user .msg-content { background: #0066ff; color: #fff; border-bottom-right-radius: 4px; }
+    .msg.bot .msg-content { background: #f0f0f0; color: #1a1a1a; border-bottom-left-radius: 4px; }
+    .sources { display: none; font-size: 0.75rem; color: #666; margin-top: 4px; padding: 8px 12px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; }
+    .sources.open { display: block; }
+    .source-item { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
+    .source-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .source-title { font-weight: 600; color: #333; }
+    .source-meta { color: #888; font-size: 0.7rem; margin: 2px 0; }
+    .source-excerpt { color: #555; white-space: pre-wrap; }
+    .toggle-sources { background: none; border: none; color: #0066ff; font-size: 0.75rem; cursor: pointer; padding: 4px 0; text-align: left; }
+    .toggle-sources:hover { text-decoration: underline; }
+    .error { background: #ffebee; color: #c62828; padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; margin-top: 8px; }
+    .input-area { padding: 16px; border-top: 1px solid #e0e0e0; background: #fff; }
+    .input-row { display: flex; gap: 8px; }
+    textarea { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 0.95rem; resize: none; min-height: 48px; max-height: 120px; }
+    textarea:focus { outline: none; border-color: #0066ff; box-shadow: 0 0 0 3px rgba(0,102,255,0.1); }
+    button.send { background: #0066ff; color: #fff; border: none; border-radius: 8px; padding: 0 20px; font-weight: 600; cursor: pointer; height: 48px; }
+    button.send:disabled { background: #ccc; cursor: not-allowed; }
+    button.send:hover:not(:disabled) { background: #0052cc; }
+    .index-btn { background: none; border: 1px solid #ddd; color: #666; padding: 0 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; height: 48px; }
+    .index-btn:hover { background: #f5f5f5; }
+    .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-radius: 50%; border-top-color: transparent; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Debug panel */
+    .debug-panel { width: 320px; flex-shrink: 0; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; max-height: 600px; }
+    .debug-header { padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; }
+    .debug-header h3 { margin: 0; font-size: 0.85rem; font-weight: 600; color: #333; }
+    .debug-badge { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+    .debug-badge.pass { background: #e8f5e9; color: #2e7d32; }
+    .debug-badge.fail { background: #ffebee; color: #c62828; }
+    .debug-content { flex: 1; overflow-y: auto; padding: 12px 16px; font-size: 0.75rem; }
+    .debug-section { margin-bottom: 16px; }
+    .debug-section:last-child { margin-bottom: 0; }
+    .debug-section-title { font-weight: 600; color: #333; margin-bottom: 8px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .debug-matches { display: flex; flex-direction: column; gap: 8px; }
+    .debug-match { padding: 8px; background: #fafafa; border-radius: 6px; border: 1px solid #eee; }
+    .match-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .match-id { font-family: monospace; font-size: 0.7rem; color: #666; }
+    .match-score { font-weight: 600; color: #0066ff; }
+    .match-source { font-size: 0.7rem; color: #888; margin-bottom: 4px; }
+    .match-excerpt { color: #555; white-space: pre-wrap; line-height: 1.4; }
+    .debug-rewritten { font-family: monospace; color: #666; background: #f5f5f5; padding: 8px; border-radius: 4px; }
+    .debug-none { color: #999; font-style: italic; }
+    .debug-guardrail { padding: 8px; background: #fff3cd; border: 1px solid #ffeeba; border-radius: 4px; color: #856404; }
+
+    /* Sample questions */
+    .sample-questions { margin-bottom: 16px; }
+    .sample-title { font-size: 0.75rem; font-weight: 600; color: #666; margin-bottom: 8px; }
+    .sample-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .sample-chip { background: #fff; border: 1px solid #ddd; border-radius: 16px; padding: 6px 12px; font-size: 0.75rem; color: #333; cursor: pointer; transition: all 0.15s; }
+    .sample-chip:hover { background: #0066ff; color: #fff; border-color: #0066ff; }
+    .sample-chip.refusal { border-color: #ffc107; }
+    .sample-chip.refusal:hover { background: #ffc107; color: #333; border-color: #ffc107; }
+
+    @media (max-width: 900px) {
+      .layout { flex-direction: column; }
+      .debug-panel { width: 100%; max-height: 300px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Groww RAG Bot</h1>
+    <span id="status" class="status err">Checking API...</span>
+  </header>
+  <main>
+    <div class="disclaimer">
+      <strong>Educational demo only.</strong> Not official Groww support. No live prices, account data, or personalized advice.
+    </div>
+
+    <div class="sample-questions">
+      <div class="sample-title">Sample questions (click to fill):</div>
+      <div id="sample-chips" class="sample-chips"></div>
+    </div>
+
+    <div class="layout">
+      <div class="chat-panel">
+        <div class="chat-container">
+          <div id="messages" class="messages"></div>
+          <div id="error-banner" class="error" style="display:none;"></div>
+          <div class="input-area">
+            <div class="input-row">
+              <textarea id="input" placeholder="Ask about Groww products, features, or general investing..." rows="1"></textarea>
+              <button id="send-btn" class="send" type="button">Send</button>
+              <button id="index-btn" class="index-btn" type="button">Rebuild Index</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="debug-panel" id="debug-panel">
+        <div class="debug-header">
+          <h3>Debug Panel</h3>
+          <span id="threshold-badge" class="debug-badge fail">Threshold: —</span>
+        </div>
+        <div class="debug-content">
+          <div class="debug-section">
+            <div class="debug-section-title">Rewritten Query</div>
+            <div id="debug-rewritten" class="debug-rewritten">(none)</div>
+          </div>
+          <div class="debug-section">
+            <div class="debug-section-title">Top-k Matches</div>
+            <div id="debug-matches" class="debug-matches">
+              <div class="debug-none">Ask a question to see retrieval details</div>
+            </div>
+          </div>
+          <div class="debug-section">
+            <div class="debug-section-title">Guardrail</div>
+            <div id="debug-guardrail" class="debug-none">(none)</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+<script>
+const API_BASE = 'http://127.0.0.1:8000';
+const messagesEl = document.getElementById('messages');
+const inputEl = document.getElementById('input');
+const sendBtn = document.getElementById('send-btn');
+const indexBtn = document.getElementById('index-btn');
+const statusEl = document.getElementById('status');
+const errorBanner = document.getElementById('error-banner');
+const thresholdBadge = document.getElementById('threshold-badge');
+const debugRewritten = document.getElementById('debug-rewritten');
+const debugMatches = document.getElementById('debug-matches');
+const debugGuardrail = document.getElementById('debug-guardrail');
+const sampleChips = document.getElementById('sample-chips');
+
+let isLoading = false;
+let history = []; // client-side conversation history (last 4 turns)
+
+// Sample questions from PRD §12
+const SAMPLE_QUESTIONS = [
+  { q: 'What is Groww?', refusal: false },
+  { q: 'How do mutual funds work on a platform like Groww (high level)?', refusal: false },
+  { q: 'What is the difference between stocks and mutual funds (as described in our docs)?', refusal: false },
+  { q: 'How do I reset my Groww password?', refusal: true },
+  { q: 'What is my portfolio value?', refusal: true },
+  { q: 'What products does Groww offer?', refusal: false },
+  { q: 'What is a SIP?', refusal: false },
+  { q: 'Should I buy Groww stock?', refusal: true },
+];
+
+function renderSampleChips() {
+  sampleChips.innerHTML = SAMPLE_QUESTIONS.map(sq => 
+    `<button class="sample-chip ${sq.refusal ? 'refusal' : ''}" data-q="${escapeHtml(sq.q)}">${escapeHtml(sq.q)}</button>`
+  ).join('');
+  sampleChips.querySelectorAll('.sample-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      inputEl.value = btn.dataset.q;
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+      inputEl.focus();
+    });
+  });
+}
+
+function setStatus(ok, text) {
+  statusEl.textContent = text;
+  statusEl.className = 'status ' + (ok ? 'ok' : 'err');
+}
+
+function showError(msg) {
+  errorBanner.textContent = msg;
+  errorBanner.style.display = 'block';
+}
+
+function hideError() {
+  errorBanner.style.display = 'none';
+}
+
+function addMessage(role, content, sources = null, debug = null) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
+
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'msg-content';
+  contentDiv.textContent = content;
+  div.appendChild(contentDiv);
+
+  if (sources && sources.length > 0) {
+    const toggle = document.createElement('button');
+    toggle.className = 'toggle-sources';
+    toggle.textContent = 'Show sources (' + sources.length + ')';
+    toggle.onclick = () => {
+      sourcesDiv.classList.toggle('open');
+      toggle.textContent = sourcesDiv.classList.contains('open')
+        ? 'Hide sources'
+        : 'Show sources (' + sources.length + ')';
+    };
+    div.appendChild(toggle);
+
+    const sourcesDiv = document.createElement('div');
+    sourcesDiv.className = 'sources';
+    sources.forEach(src => {
+      const item = document.createElement('div');
+      item.className = 'source-item';
+      item.innerHTML = `
+        <div class="source-title">${escapeHtml(src.source_name || 'Unknown')}</div>
+        <div class="source-meta">chunk: ${escapeHtml(src.chunk_id)} | path: ${escapeHtml(src.source_path)}</div>
+        <div class="source-excerpt">${escapeHtml(src.excerpt || '')}</div>
+      `;
+      sourcesDiv.appendChild(item);
+    });
+    div.appendChild(sourcesDiv);
+  }
+
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function updateDebugPanel(debug) {
+  if (!debug) {
+    resetDebugPanel();
+    return;
+  }
+
+  // Threshold badge
+  const passed = debug.threshold_passed === true;
+  thresholdBadge.textContent = 'Threshold: ' + (passed ? 'PASSED' : 'FAILED');
+  thresholdBadge.className = 'debug-badge ' + (passed ? 'pass' : 'fail');
+
+  // Rewritten query
+  if (debug.rewritten_query) {
+    debugRewritten.textContent = debug.rewritten_query;
+    debugRewritten.classList.remove('debug-none');
+  } else {
+    debugRewritten.textContent = '(none)';
+    debugRewritten.classList.add('debug-none');
+  }
+
+  // Matches
+  if (debug.matches && debug.matches.length > 0) {
+    debugMatches.innerHTML = debug.matches.map(m => `
+      <div class="debug-match">
+        <div class="match-header">
+          <span class="match-id">${escapeHtml(m.chunk_id)}</span>
+          <span class="match-score">${(m.score * 100).toFixed(1)}%</span>
+        </div>
+      </div>
+    `).join('');
+  } else {
+    debugMatches.innerHTML = '<div class="debug-none">No matches above threshold</div>';
+  }
+
+  // Guardrail
+  if (debug.guardrail) {
+    debugGuardrail.textContent = debug.guardrail;
+    debugGuardrail.className = 'debug-guardrail';
+  } else {
+    debugGuardrail.textContent = '(none)';
+    debugGuardrail.className = 'debug-none';
+  }
+}
+
+function resetDebugPanel() {
+  thresholdBadge.textContent = 'Threshold: —';
+  thresholdBadge.className = 'debug-badge fail';
+  debugRewritten.textContent = '(none)';
+  debugRewritten.classList.add('debug-none');
+  debugMatches.innerHTML = '<div class="debug-none">Ask a question to see retrieval details</div>';
+  debugGuardrail.textContent = '(none)';
+  debugGuardrail.className = 'debug-none';
+}
+
+async function checkHealth() {
+  try {
+    const res = await fetch(API_BASE + '/health');
+    const data = await res.json();
+    if (data.ok) {
+      setStatus(true, data.index_exists ? 'API ready • Index exists' : 'API ready • Index missing');
+      if (!data.index_exists) showError('Knowledge base not built. Click "Rebuild Index" or run ingest.');
+      return data.index_exists;
+    }
+  } catch (e) {
+    setStatus(false, 'API unreachable');
+    showError('Cannot connect to API. Is the server running?');
+  }
+  return false;
+}
+
+async function sendQuestion() {
+  const question = inputEl.value.trim();
+  if (!question || isLoading) return;
+
+  addMessage('user', question);
+  inputEl.value = '';
+  inputEl.style.height = 'auto';
+  isLoading = true;
+  sendBtn.disabled = true;
+  sendBtn.innerHTML = '<span class="loading"></span>Sending...';
+  hideError();
+  resetDebugPanel();
+
+  try {
+    // Send last 4 turns (2 user + 2 assistant) as history
+    const historyToSend = history.slice(-4);
+    const res = await fetch(API_BASE + '/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, history: historyToSend })
+    });
+    const data = await res.json();
+
+    if (res.status === 503) {
+      showError(data.detail || 'Knowledge base not built.');
+      addMessage('bot', 'Knowledge base not built. Please run ingest first.');
+      return;
+    }
+
+    addMessage('bot', data.answer, data.citations, data.debug);
+    updateDebugPanel(data.debug);
+
+    // Update history
+    history.push({ role: 'user', content: question });
+    history.push({ role: 'assistant', content: data.answer });
+    // Keep only last 8 messages (4 turns)
+    if (history.length > 8) history = history.slice(-8);
+
+  } catch (e) {
+    showError('Request failed: ' + e.message);
+    addMessage('bot', 'Service temporarily unavailable. Please try again.');
+  } finally {
+    isLoading = false;
+    sendBtn.disabled = false;
+    sendBtn.textContent = 'Send';
+  }
+}
+
+async function rebuildIndex() {
+  if (isLoading) return;
+  isLoading = true;
+  indexBtn.disabled = true;
+  indexBtn.textContent = 'Rebuilding...';
+  hideError();
+
+  try {
+    const res = await fetch(API_BASE + '/index', { method: 'POST' });
+    const data = await res.json();
+    addMessage('bot', `Index rebuilt: ${data.file_count} files, ${data.chunk_count} chunks.`);
+    setStatus(true, 'API ready • Index exists');
+  } catch (e) {
+    showError('Rebuild failed: ' + e.message);
+  } finally {
+    isLoading = false;
+    indexBtn.disabled = false;
+    indexBtn.textContent = 'Rebuild Index';
+  }
+}
+
+sendBtn.addEventListener('click', sendQuestion);
+indexBtn.addEventListener('click', rebuildIndex);
+inputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendQuestion();
+  }
+});
+inputEl.addEventListener('input', () => {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+});
+
+renderSampleChips();
+checkHealth();
+setInterval(checkHealth, 30000);
+</script>
+</body>
+</html>
