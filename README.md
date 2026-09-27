@@ -1,3 +1,13 @@
+---
+title: Tathya
+emoji: 📊
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Tathya — HDFC Mutual Fund FAQ Assistant
 
 Tathya (Hindi/Sanskrit for "fact") is a facts-only RAG chatbot. Every answer comes with its source.

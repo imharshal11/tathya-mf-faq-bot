@@ -1,7 +1,15 @@
-"""FastAPI app with /chat, /index, /health endpoints."""
+"""FastAPI app with /chat, /index, /health endpoints. Serves web UI at root."""
+
+from __future__ import annotations
+
+import os
+from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from src.ingest import chroma_path, load_env, rebuild_index
@@ -9,9 +17,36 @@ from src.retrieve import retrieve_chunks
 from src.generate import generate_answer, extract_answer
 from src.guardrails import check_guardrails, GuardrailResult
 
+
+# Safe defaults (env vars override)
+TOP_K = int(os.getenv("TOP_K", "6"))
+SCORE_THRESHOLD = float(os.getenv("SCORE_THRESHOLD", "0.55"))
+COLLECTION_NAME = os.getenv("COLLECTION_NAME", "mf_faq")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+
+
+def ensure_index() -> None:
+    """Auto-build index on startup if missing or empty."""
+    load_env()
+    persist = chroma_path()
+    if not (persist.exists() and any(persist.iterdir())):
+        print("Index not found, building from corpus...")
+        rebuild_index()
+        print("Index built.")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    ensure_index()
+    yield
+    # Shutdown (nothing needed)
+
+
 load_env()
 
-app = FastAPI(title="Tathya — HDFC Mutual Fund FAQ Assistant")
+app = FastAPI(title="Tathya — HDFC Mutual Fund FAQ Assistant", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,6 +55,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve static files (web UI) - mounted AFTER API routes so they don't override
+WEB_DIR = Path(__file__).parent.parent / "web"
+if WEB_DIR.exists():
+    app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
+
+    @app.get("/")
+    async def root():
+        return FileResponse(WEB_DIR / "index.html")
 
 
 class ChatRequest(BaseModel):
