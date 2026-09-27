@@ -1,18 +1,20 @@
 import os
 import re
 import sys
-import chromadb
-from chromadb.config import Settings
-from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
 from pathlib import Path
+
+from src.common import (
+    get_chroma_client,
+    get_embedding_function,
+    get_collection,
+    CHROMA_PATH,
+    CORPUS_PATH,
+    COLLECTION_NAME,
+)
 
 # UTF-8 safe console printing
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
-
-CHROMA_PATH = os.getenv("CHROMA_PATH", "data/chroma")
-CORPUS_PATH = os.getenv("CORPUS_PATH", "corpus")
-COLLECTION_NAME = os.getenv("COLLECTION_NAME", "mf_faq")
 
 FRONT_MATTER_PATTERN = re.compile(r"<!--\s*scheme_name:\s*(.+?)\s*-->")
 CATEGORY_PATTERN = re.compile(r"<!--\s*category:\s*(.+?)\s*-->")
@@ -105,26 +107,6 @@ def chunk_file(filepath: Path) -> list[dict]:
     return chunks
 
 
-def get_chroma_client():
-    """Get a configured ChromaDB persistent client."""
-    return chromadb.PersistentClient(path=CHROMA_PATH, settings=Settings(anonymized_telemetry=False))
-
-
-def get_embedding_function():
-    """Get the embedding function for the configured model."""
-    return ONNXMiniLM_L6_V2()
-
-
-def collection_name() -> str:
-    """Get the collection name from environment or default."""
-    return os.getenv("COLLECTION_NAME", "mf_faq")
-
-
-def chroma_path() -> Path:
-    """Get the ChromaDB path as a Path object."""
-    return Path(CHROMA_PATH)
-
-
 def load_env() -> None:
     """Load environment variables from .env file if present."""
     from dotenv import load_dotenv
@@ -138,15 +120,14 @@ def rebuild_index() -> dict:
     
     # Delete old collection
     try:
-        client.delete_collection(collection_name())
+        client.delete_collection(COLLECTION_NAME)
     except:
         pass
     
     # Create collection with embedding function and cosine space
-    emb_fn = get_embedding_function()
     collection = client.create_collection(
-        name=collection_name(),
-        embedding_function=emb_fn,
+        name=COLLECTION_NAME,
+        embedding_function=get_embedding_function(),
         metadata={"hnsw:space": "cosine"}
     )
 
@@ -186,7 +167,11 @@ def rebuild_index() -> dict:
         "heading": c["heading"],
     } for i, c in enumerate(all_chunks)]
 
-    collection.add(ids=ids, documents=texts, metadatas=metadatas)
+    # Add in small batches to reduce memory
+    BATCH_SIZE = 16
+    for i in range(0, len(texts), BATCH_SIZE):
+        end = min(i + BATCH_SIZE, len(texts))
+        collection.add(ids=ids[i:end], documents=texts[i:end], metadatas=metadatas[i:end])
 
     print(f"\nIngestion complete. Collection count: {collection.count()}")
 
@@ -194,7 +179,7 @@ def rebuild_index() -> dict:
         "status": "ok",
         "chunks": len(all_chunks),
         "chunk_counts": chunk_counts,
-        "collection": collection_name(),
+        "collection": COLLECTION_NAME,
     }
 
 
@@ -205,9 +190,7 @@ def ingest():
     if result.get("status") == "ok":
         print(f"\nIngestion complete. Collection count: {result.get('chunks', 0)}")
         print("\n--- Chunk Details ---")
-        # Get chunk details without embedding function conflict
-        client = get_chroma_client()
-        collection = client.get_collection(name=collection_name())
+        collection = get_collection()
         results = collection.get(include=["documents", "metadatas"])
         for i, (doc_id, doc, meta) in enumerate(zip(results["ids"], results["documents"], results["metadatas"])):
             print(f"  {doc_id} | {meta.get('scheme_name', '')} | {doc[:80]}...")

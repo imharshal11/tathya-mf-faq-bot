@@ -12,33 +12,28 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from src.ingest import chroma_path, load_env, rebuild_index
+from src.ingest import load_env, rebuild_index
 from src.retrieve import retrieve_chunks
 from src.generate import generate_answer, extract_answer
 from src.guardrails import check_guardrails, GuardrailResult
+from src.common import get_collection, COLLECTION_NAME
 
 
 # Safe defaults (env vars override)
 TOP_K = int(os.getenv("TOP_K", "6"))
 SCORE_THRESHOLD = float(os.getenv("SCORE_THRESHOLD", "0.55"))
-COLLECTION_NAME = os.getenv("COLLECTION_NAME", "mf_faq")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
-
-
-def ensure_index() -> None:
-    """Auto-build index on startup if missing or empty."""
-    load_env()
-    persist = chroma_path()
-    if not (persist.exists() and any(persist.iterdir())):
-        print("Index not found, building from corpus...")
-        rebuild_index()
-        print("Index built.")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    ensure_index()
+    # Startup - index is built at Docker build time, just verify it exists
+    load_env()
+    persist = Path(os.getenv("CHROMA_PATH", "data/chroma"))
+    if not (persist.exists() and any(persist.iterdir())):
+        print("Index not found at startup, building from corpus...")
+        rebuild_index()
+        print("Index built.")
     yield
     # Shutdown (nothing needed)
 
@@ -83,7 +78,7 @@ def post_index() -> dict:
 
 @app.get("/health")
 def health() -> dict:
-    persist = chroma_path()
+    persist = Path(os.getenv("CHROMA_PATH", "data/chroma"))
     index_exists = persist.exists() and any(persist.iterdir()) if persist.exists() else False
     return {"ok": True, "index_exists": index_exists}
 
@@ -91,7 +86,7 @@ def health() -> dict:
 @app.post("/chat", response_model=ChatResponse)
 def post_chat(req: ChatRequest) -> ChatResponse:
     # Check if index exists
-    persist = chroma_path()
+    persist = Path(os.getenv("CHROMA_PATH", "data/chroma"))
     if not (persist.exists() and any(persist.iterdir())):
         raise HTTPException(
             status_code=503,

@@ -4,18 +4,9 @@ from __future__ import annotations
 
 import os
 import re
-from pathlib import Path
 
-import chromadb
-from dotenv import load_dotenv
-from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
-
-from src.ingest import (
-    get_chroma_client,
-    collection_name,
-    chroma_path,
-    load_env,
-)
+from src.common import get_collection
+from src.ingest import load_env
 
 
 SCHEME_KEYWORDS = {
@@ -50,12 +41,8 @@ def retrieve_chunks(query: str, top_k: int | None = None) -> tuple[list[dict], l
     k = top_k or int(os.getenv("TOP_K", "6"))
     threshold = float(os.getenv("SCORE_THRESHOLD", "0.55"))
 
-    client = get_chroma_client()
     try:
-        coll = client.get_collection(
-            name=collection_name(),
-            embedding_function=ONNXMiniLM_L6_V2(),
-        )
+        coll = get_collection()
     except Exception:
         return [], []
 

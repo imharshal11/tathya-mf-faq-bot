@@ -2,18 +2,19 @@
 
 from __future__ import annotations
 
-import os
 import re
-from typing import Any
 
-from groq import Groq
-from dotenv import load_dotenv
+from src.common import get_groq_client, GROQ_MODEL
 
 
-load_dotenv()
-
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
-GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b").strip()
+SYSTEM_PROMPT = """You are a factual assistant for HDFC Mutual Fund queries.
+Answer only from the provided chunks.
+Maximum 3 sentences.
+No investment advice.
+No returns or performance numbers.
+Never output URLs.
+If the chunks list fund managers, list all their names.
+If the chunks do not contain the answer, reply exactly: NOT_FOUND"""
 
 
 SYSTEM_PROMPT = """You are a factual assistant for HDFC Mutual Fund queries.
@@ -52,10 +53,9 @@ def _build_prompt(chunks: list[dict], question: str) -> str:
 
 def generate_answer(chunks: list[dict], question: str) -> str:
     """Call Groq API to generate answer from chunks. Returns answer or raises on failure."""
-    if not GROQ_API_KEY:
+    client = get_groq_client()
+    if client is None:
         raise RuntimeError("GROQ_API_KEY not set")
-
-    client = Groq(api_key=GROQ_API_KEY)
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
