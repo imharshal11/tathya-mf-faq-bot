@@ -1,106 +1,126 @@
-"""Build prompt, call LLM, parse answer with citations."""
+"""Generate answers using Groq API with extractive fallback."""
 
 from __future__ import annotations
 
 import os
+import re
 from typing import Any
 
-from openai import OpenAI
-
-from src.guardrails import refusal_message
-
-
-SYSTEM_PROMPT = """You are a helpful assistant for Groww educational queries.
-Answer only from the provided context.
-If context is missing or irrelevant, say the knowledge base does not cover it.
-No personalized financial advice; no account actions.
-Educational demo, not official Groww support.
-Cite sources by source_name / chunk_id that actually appear in context."""
+from groq import Groq
+from dotenv import load_dotenv
 
 
-def _build_context(chunks: list[dict]) -> str:
-    lines = ["Context chunks:"]
+load_dotenv()
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b").strip()
+
+
+SYSTEM_PROMPT = """You are a factual assistant for HDFC Mutual Fund queries.
+Answer only from the provided chunks.
+Maximum 3 sentences.
+No investment advice.
+No returns or performance numbers.
+Never output URLs.
+If the chunks list fund managers, list all their names.
+If the chunks do not contain the answer, reply exactly: NOT_FOUND"""
+
+
+def _strip_reasoning(text: str) -> str:
+    """Remove reasoning blocks and normalize special characters from model output."""
+    # Remove <thinking>...</thinking> blocks
+    text = re.sub(r"<thinking>.*?</thinking>", "", text, flags=re.DOTALL | re.IGNORECASE)
+    # Remove ```...``` blocks (reasoning model output)
+    text = re.sub(r"```.*?```", "", text, flags=re.DOTALL | re.IGNORECASE)
+    # Remove 【...】 citation markers sometimes used by reasoning models
+    text = re.sub(r"【.*?】", "", text)
+    # Normalize special spaces: \u202f (narrow no-break space), \u00a0 (no-break space) -> normal space
+    text = text.replace("\u202f", " ").replace("\u00a0", " ")
+    # Normalize special dashes: \u2011 (non-breaking hyphen), \u2013 (en dash), \u2014 (em dash) -> "-"
+    text = text.replace("\u2011", "-").replace("\u2013", "-").replace("\u2014", "-")
+    return text.strip()
+
+
+def _build_prompt(chunks: list[dict], question: str) -> str:
+    """Build the user prompt with chunks and question."""
+    context_lines = ["Context chunks:"]
     for i, ch in enumerate(chunks, start=1):
-        lines.append(
-            f"[{i}] chunk_id={ch['chunk_id']} source={ch['source_name']}\n{ch['text']}"
-        )
-    return "\n\n".join(lines)
+        context_lines.append(f"[{i}] {ch['text']}")
+    context = "\n\n".join(context_lines)
+    return f"{context}\n\nQuestion: {question}\n\nAnswer:"
 
 
-def _call_llm(messages: list[dict[str, str]]) -> str:
-    api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
-    base_url = (os.getenv("OPENAI_BASE_URL") or "").strip() or None
-    model = os.getenv("CHAT_MODEL", "gpt-4o-mini")
+def generate_answer(chunks: list[dict], question: str) -> str:
+    """Call Groq API to generate answer from chunks. Returns answer or raises on failure."""
+    if not GROQ_API_KEY:
+        raise RuntimeError("GROQ_API_KEY not set")
 
-    if not api_key:
-        raise RuntimeError("OPENAI_API_KEY not set")
+    client = Groq(api_key=GROQ_API_KEY)
 
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    resp = client.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=0.2,
-    )
-    return resp.choices[0].message.content or ""
-
-
-def generate_answer(question: str, chunks: list[dict]) -> tuple[str, list[dict]]:
-    """Return (answer_text, citations_list)."""
-    if not chunks:
-        return "That isn't covered in the knowledge base.", []
-
-    context = _build_context(chunks)
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"Question: {question}\n\n{context}"},
+        {"role": "user", "content": _build_prompt(chunks, question)},
     ]
 
-    try:
-        answer = _call_llm(messages)
-    except Exception:
-        return "Service temporarily unavailable. Please try again.", []
-
-    # Extract citations from chunks that were provided
-    citations = []
-    for ch in chunks:
-        citations.append(
-            {
-                "chunk_id": ch["chunk_id"],
-                "source_name": ch["source_name"],
-                "source_path": ch["source_path"],
-                "excerpt": ch["text"][:200],
-            }
-        )
-
-    return answer, citations
-
-
-def chat_response(
-    question: str,
-    chunks: list[dict],
-    scores: list[float],
-    threshold_passed: bool,
-    guardrail: str | None = None,
-    rewritten_query: str | None = None,
-) -> dict[str, Any]:
-    """Build the full /chat response object per architecture §10."""
-    if guardrail:
-        return refusal_message(question, guardrail)
-
-    if not threshold_passed or not chunks:
-        return refusal_message(question, "weak_retrieval")
-
-    answer, citations = generate_answer(question, chunks)
-
-    return {
-        "answer": answer,
-        "citations": citations,
-        "debug": {
-            "rewritten_query": rewritten_query,
-            "threshold_passed": threshold_passed,
-            "matches": [
-                {"chunk_id": ch["chunk_id"], "score": round(sc, 4)}
-                for ch, sc in zip(chunks, scores)
-            ],
-        },
+    # Base params
+    base_params = {
+        "model": GROQ_MODEL,
+        "messages": messages,
+        "temperature": 0,
+        "max_tokens": 800,
     }
+
+    # Add reasoning_effort for gpt-oss models
+    if "gpt-oss" in GROQ_MODEL.lower():
+        base_params["reasoning_effort"] = "low"
+
+    # Try with reasoning_format="hidden" if supported
+    try:
+        params = {**base_params, "reasoning_format": "hidden"}
+        resp = client.chat.completions.create(**params)
+    except TypeError:
+        # Fallback if reasoning_format not supported
+        resp = client.chat.completions.create(**base_params)
+
+    answer = resp.choices[0].message.content or ""
+    answer = _strip_reasoning(answer)
+
+    # Treat empty/whitespace as failure
+    if not answer or not answer.strip():
+        raise RuntimeError("Groq returned empty response")
+
+    return answer
+
+
+def extract_answer(chunk_text: str, question: str) -> str:
+    """Extractive fallback: best 1-3 sentences from chunk by keyword overlap with question."""
+    # Remove "Heading: " prefix if present
+    text = re.sub(r"^[^:]+:\s*", "", chunk_text).strip()
+
+    # Split into sentences
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    sentences = [s.strip() for s in sentences if s.strip()]
+
+    if not sentences:
+        return "Information not available in the knowledge base."
+
+    # Score sentences by keyword overlap with question
+    question_words = set(re.findall(r"\b\w+\b", question.lower()))
+    stopwords = {"the", "a", "an", "is", "of", "in", "for", "to", "and", "or", "what", "how", "much", "many", "who", "which", "when", "where", "why", "my", "your", "his", "her", "its", "our", "their", "this", "that", "these", "those", "be", "been", "being", "have", "has", "had", "do", "does", "did", "will", "would", "should", "could", "can", "may", "might", "must", "shall"}
+    question_keywords = {w for w in question_words if w not in stopwords and len(w) > 2}
+
+    scored = []
+    for sent in sentences:
+        sent_words = set(re.findall(r"\b\w+\b", sent.lower()))
+        overlap = len(question_keywords & sent_words)
+        scored.append((overlap, sent))
+
+    # Sort by overlap descending, take top 3
+    scored.sort(key=lambda x: x[0], reverse=True)
+    top_sentences = [s for _, s in scored[:3]]
+
+    # If no overlap, just take first 3 sentences
+    if not top_sentences or all(o == 0 for o, _ in scored[:3]):
+        top_sentences = sentences[:3]
+
+    return " ".join(top_sentences)

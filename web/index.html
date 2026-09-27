@@ -3,20 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Groww RAG Bot</title>
+  <title>HDFC Mutual Fund FAQ Assistant</title>
   <style>
     * { box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; background: #f5f5f5; min-height: 100vh; display: flex; flex-direction: column; }
-    header { background: #fff; border-bottom: 1px solid #e0e0e0; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+    header { background: #fff; border-bottom: 1px solid #e0e0e0; padding: 16px 24px; }
     h1 { margin: 0; font-size: 1.25rem; color: #1a1a1a; }
-    .status { font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; }
+    .status { font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; margin-top: 8px; display: inline-block; }
     .status.ok { background: #e8f5e9; color: #2e7d32; }
     .status.err { background: #ffebee; color: #c62828; }
-    main { flex: 1; display: flex; flex-direction: column; max-width: 1100px; width: 100%; margin: 0 auto; padding: 24px 16px; }
-    .disclaimer { background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 12px 16px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 16px; }
-    .layout { display: flex; gap: 16px; flex: 1; }
-    .chat-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-    .chat-container { flex: 1; display: flex; flex-direction: column; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
+    main { flex: 1; display: flex; flex-direction: column; max-width: 720px; width: 100%; margin: 0 auto; padding: 24px 16px; }
+    .welcome { margin-bottom: 16px; }
+    .welcome-title { font-size: 1.1rem; font-weight: 600; color: #1a1a1a; margin-bottom: 4px; }
+    .welcome-text { font-size: 0.95rem; color: #444; }
+    .disclaimer { background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 12px 16px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 16px; font-weight: 500; }
+    .sample-questions { margin-bottom: 20px; }
+    .sample-title { font-size: 0.8rem; font-weight: 600; color: #666; margin-bottom: 10px; }
+    .sample-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .sample-chip { background: #fff; border: 1px solid #ddd; border-radius: 20px; padding: 8px 14px; font-size: 0.85rem; color: #333; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .sample-chip:hover { background: #0066ff; color: #fff; border-color: #0066ff; }
+    .chat-container { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; }
     .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; max-height: 500px; }
     .msg { display: flex; flex-direction: column; gap: 4px; max-width: 85%; }
     .msg.user { align-self: flex-end; }
@@ -24,16 +30,13 @@
     .msg-content { padding: 10px 14px; border-radius: 12px; line-height: 1.5; }
     .msg.user .msg-content { background: #0066ff; color: #fff; border-bottom-right-radius: 4px; }
     .msg.bot .msg-content { background: #f0f0f0; color: #1a1a1a; border-bottom-left-radius: 4px; }
-    .sources { display: none; font-size: 0.75rem; color: #666; margin-top: 4px; padding: 8px 12px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; }
-    .sources.open { display: block; }
-    .source-item { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
-    .source-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
-    .source-title { font-weight: 600; color: #333; }
-    .source-meta { color: #888; font-size: 0.7rem; margin: 2px 0; }
-    .source-excerpt { color: #555; white-space: pre-wrap; }
-    .toggle-sources { background: none; border: none; color: #0066ff; font-size: 0.75rem; cursor: pointer; padding: 4px 0; text-align: left; }
-    .toggle-sources:hover { text-decoration: underline; }
-    .error { background: #ffebee; color: #c62828; padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; margin-top: 8px; }
+    .msg.bot .msg-content.refusal { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+    .source-line { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(0,0,0,0.1); font-size: 0.8rem; }
+    .msg.user .source-line { border-top: 1px solid rgba(255,255,255,0.2); }
+    .source-link { color: #0066ff; text-decoration: none; font-weight: 500; }
+    .source-link:hover { text-decoration: underline; }
+    .source-date { color: #888; }
+    .error-banner { background: #ffebee; color: #c62828; padding: 10px 16px; border-radius: 8px; font-size: 0.85rem; margin: 0 16px 16px; display: none; }
     .input-area { padding: 16px; border-top: 1px solid #e0e0e0; background: #fff; }
     .input-row { display: flex; gap: 8px; }
     textarea { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 0.95rem; resize: none; min-height: 48px; max-height: 120px; }
@@ -41,13 +44,12 @@
     button.send { background: #0066ff; color: #fff; border: none; border-radius: 8px; padding: 0 20px; font-weight: 600; cursor: pointer; height: 48px; }
     button.send:disabled { background: #ccc; cursor: not-allowed; }
     button.send:hover:not(:disabled) { background: #0052cc; }
-    .index-btn { background: none; border: 1px solid #ddd; color: #666; padding: 0 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; height: 48px; }
-    .index-btn:hover { background: #f5f5f5; }
     .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-radius: 50%; border-top-color: transparent; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Debug panel */
-    .debug-panel { width: 320px; flex-shrink: 0; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; max-height: 600px; }
+    /* Debug panel - hidden by default */
+    .debug-panel { display: none; width: 320px; flex-shrink: 0; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 16px; max-height: 400px; }
+    .debug-panel.visible { display: flex; flex-direction: column; }
     .debug-header { padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; }
     .debug-header h3 { margin: 0; font-size: 0.85rem; font-weight: 600; color: #333; }
     .debug-badge { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
@@ -64,78 +66,63 @@
     .match-score { font-weight: 600; color: #0066ff; }
     .match-source { font-size: 0.7rem; color: #888; margin-bottom: 4px; }
     .match-excerpt { color: #555; white-space: pre-wrap; line-height: 1.4; }
-    .debug-rewritten { font-family: monospace; color: #666; background: #f5f5f5; padding: 8px; border-radius: 4px; }
-    .debug-none { color: #999; font-style: italic; }
     .debug-guardrail { padding: 8px; background: #fff3cd; border: 1px solid #ffeeba; border-radius: 4px; color: #856404; }
-
-    /* Sample questions */
-    .sample-questions { margin-bottom: 16px; }
-    .sample-title { font-size: 0.75rem; font-weight: 600; color: #666; margin-bottom: 8px; }
-    .sample-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-    .sample-chip { background: #fff; border: 1px solid #ddd; border-radius: 16px; padding: 6px 12px; font-size: 0.75rem; color: #333; cursor: pointer; transition: all 0.15s; }
-    .sample-chip:hover { background: #0066ff; color: #fff; border-color: #0066ff; }
-    .sample-chip.refusal { border-color: #ffc107; }
-    .sample-chip.refusal:hover { background: #ffc107; color: #333; border-color: #ffc107; }
+    .debug-none { color: #999; font-style: italic; }
 
     @media (max-width: 900px) {
-      .layout { flex-direction: column; }
+      main { padding: 16px 12px; }
       .debug-panel { width: 100%; max-height: 300px; }
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>Groww RAG Bot</h1>
+    <h1>HDFC Mutual Fund FAQ Assistant</h1>
     <span id="status" class="status err">Checking API...</span>
   </header>
   <main>
-    <div class="disclaimer">
-      <strong>Educational demo only.</strong> Not official Groww support. No live prices, account data, or personalized advice.
+    <div class="welcome">
+      <div class="welcome-title">Welcome to the HDFC Mutual Fund FAQ Assistant.</div>
+      <div class="welcome-text">Ask me facts about 5 HDFC Mutual Fund schemes.</div>
     </div>
 
+    <div class="disclaimer">Facts-only. No investment advice.</div>
+
     <div class="sample-questions">
-      <div class="sample-title">Sample questions (click to fill):</div>
+      <div class="sample-title">Example questions (click to ask):</div>
       <div id="sample-chips" class="sample-chips"></div>
     </div>
 
-    <div class="layout">
-      <div class="chat-panel">
-        <div class="chat-container">
-          <div id="messages" class="messages"></div>
-          <div id="error-banner" class="error" style="display:none;"></div>
-          <div class="input-area">
-            <div class="input-row">
-              <textarea id="input" placeholder="Ask about Groww products, features, or general investing..." rows="1"></textarea>
-              <button id="send-btn" class="send" type="button">Send</button>
-              <button id="index-btn" class="index-btn" type="button">Rebuild Index</button>
-            </div>
-          </div>
+    <div class="chat-container">
+      <div id="error-banner" class="error-banner" style="display:none;"></div>
+      <div id="messages" class="messages"></div>
+      <div class="input-area">
+        <div class="input-row">
+          <textarea id="input" placeholder="Ask about expense ratio, exit load, lock-in period, SIP minimum, riskometer, benchmark..." rows="1"></textarea>
+          <button id="send-btn" class="send" type="button">Send</button>
         </div>
       </div>
-
-      <aside class="debug-panel" id="debug-panel">
-        <div class="debug-header">
-          <h3>Debug Panel</h3>
-          <span id="threshold-badge" class="debug-badge fail">Threshold: —</span>
-        </div>
-        <div class="debug-content">
-          <div class="debug-section">
-            <div class="debug-section-title">Rewritten Query</div>
-            <div id="debug-rewritten" class="debug-rewritten">(none)</div>
-          </div>
-          <div class="debug-section">
-            <div class="debug-section-title">Top-k Matches</div>
-            <div id="debug-matches" class="debug-matches">
-              <div class="debug-none">Ask a question to see retrieval details</div>
-            </div>
-          </div>
-          <div class="debug-section">
-            <div class="debug-section-title">Guardrail</div>
-            <div id="debug-guardrail" class="debug-none">(none)</div>
-          </div>
-        </div>
-      </aside>
     </div>
+
+    <!-- Debug panel - only shown when ?debug=1 -->
+    <aside class="debug-panel" id="debug-panel">
+      <div class="debug-header">
+        <h3>Debug Panel</h3>
+        <span id="threshold-badge" class="debug-badge fail">Threshold: —</span>
+      </div>
+      <div class="debug-content">
+        <div class="debug-section">
+          <div class="debug-section-title">Top-k Matches</div>
+          <div id="debug-matches" class="debug-matches">
+            <div class="debug-none">Ask a question to see retrieval details</div>
+          </div>
+        </div>
+        <div class="debug-section">
+          <div class="debug-section-title">Guardrail</div>
+          <div id="debug-guardrail" class="debug-none">(none)</div>
+        </div>
+      </div>
+    </aside>
   </main>
 
 <script>
@@ -143,33 +130,33 @@ const API_BASE = 'http://127.0.0.1:8000';
 const messagesEl = document.getElementById('messages');
 const inputEl = document.getElementById('input');
 const sendBtn = document.getElementById('send-btn');
-const indexBtn = document.getElementById('index-btn');
 const statusEl = document.getElementById('status');
 const errorBanner = document.getElementById('error-banner');
 const thresholdBadge = document.getElementById('threshold-badge');
-const debugRewritten = document.getElementById('debug-rewritten');
 const debugMatches = document.getElementById('debug-matches');
 const debugGuardrail = document.getElementById('debug-guardrail');
 const sampleChips = document.getElementById('sample-chips');
+const debugPanel = document.getElementById('debug-panel');
 
 let isLoading = false;
-let history = []; // client-side conversation history (last 4 turns)
+let lastUserMessage = '';
 
-// Sample questions from PRD §12
+// Check for ?debug=1 in URL
+const isDebugMode = new URLSearchParams(window.location.search).has('debug');
+if (isDebugMode) {
+  debugPanel.classList.add('visible');
+}
+
+// Example questions
 const SAMPLE_QUESTIONS = [
-  { q: 'What is Groww?', refusal: false },
-  { q: 'How do mutual funds work on a platform like Groww (high level)?', refusal: false },
-  { q: 'What is the difference between stocks and mutual funds (as described in our docs)?', refusal: false },
-  { q: 'How do I reset my Groww password?', refusal: true },
-  { q: 'What is my portfolio value?', refusal: true },
-  { q: 'What products does Groww offer?', refusal: false },
-  { q: 'What is a SIP?', refusal: false },
-  { q: 'Should I buy Groww stock?', refusal: true },
+  'What is the expense ratio of HDFC Large Cap Fund?',
+  'What is the lock-in period of HDFC ELSS Tax Saver Fund?',
+  'What is the exit load of HDFC Small Cap Fund?'
 ];
 
 function renderSampleChips() {
-  sampleChips.innerHTML = SAMPLE_QUESTIONS.map(sq => 
-    `<button class="sample-chip ${sq.refusal ? 'refusal' : ''}" data-q="${escapeHtml(sq.q)}">${escapeHtml(sq.q)}</button>`
+  sampleChips.innerHTML = SAMPLE_QUESTIONS.map(q =>
+    `<button class="sample-chip" data-q="${escapeHtml(q)}">${escapeHtml(q)}</button>`
   ).join('');
   sampleChips.querySelectorAll('.sample-chip').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -195,73 +182,65 @@ function hideError() {
   errorBanner.style.display = 'none';
 }
 
-function addMessage(role, content, sources = null, debug = null) {
-  const div = document.createElement('div');
-  div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
-
-  const contentDiv = document.createElement('div');
-  contentDiv.className = 'msg-content';
-  contentDiv.textContent = content;
-  div.appendChild(contentDiv);
-
-  if (sources && sources.length > 0) {
-    const toggle = document.createElement('button');
-    toggle.className = 'toggle-sources';
-    toggle.textContent = 'Show sources (' + sources.length + ')';
-    toggle.onclick = () => {
-      sourcesDiv.classList.toggle('open');
-      toggle.textContent = sourcesDiv.classList.contains('open')
-        ? 'Hide sources'
-        : 'Show sources (' + sources.length + ')';
-    };
-    div.appendChild(toggle);
-
-    const sourcesDiv = document.createElement('div');
-    sourcesDiv.className = 'sources';
-    sources.forEach(src => {
-      const item = document.createElement('div');
-      item.className = 'source-item';
-      item.innerHTML = `
-        <div class="source-title">${escapeHtml(src.source_name || 'Unknown')}</div>
-        <div class="source-meta">chunk: ${escapeHtml(src.chunk_id)} | path: ${escapeHtml(src.source_path)}</div>
-        <div class="source-excerpt">${escapeHtml(src.excerpt || '')}</div>
-      `;
-      sourcesDiv.appendChild(item);
-    });
-    div.appendChild(sourcesDiv);
-  }
-
-  messagesEl.appendChild(div);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
-
 function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
 }
 
-function updateDebugPanel(debug) {
-  if (!debug) {
-    resetDebugPanel();
-    return;
+function addMessage(role, content, sourceUrl = '', fetchedDate = '', debug = null) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
+
+  const contentDiv = document.createElement('div');
+  const isRefusal = debug?.guardrail === 'advisory' || debug?.guardrail === 'returns' || debug?.guardrail === 'pii';
+  const isNotInKb = content === 'Not in the knowledge base' || content === 'Knowledge base not built. Please run ingest first.';
+  contentDiv.className = 'msg-content' + (isRefusal ? ' refusal' : '');
+  contentDiv.textContent = content;
+  div.appendChild(contentDiv);
+
+  // Add source line for bot messages
+  if (role === 'bot') {
+    const sourceDiv = document.createElement('div');
+    sourceDiv.className = 'source-line';
+    let sourceHtml = '';
+
+    if (debug?.guardrail === 'pii') {
+      // PII refusal: no link, no date
+    } else if (debug?.guardrail === 'advisory' || debug?.guardrail === 'returns') {
+      // Advisory/returns refusal: "Learn more" link only, no date
+      const url = debug.guardrail === 'advisory'
+        ? 'https://www.mutualfundssahihai.com/en'
+        : 'https://www.hdfcfund.com/mutual-funds/factsheets';
+      sourceHtml += `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="source-link">Learn more</a>`;
+    } else if (isNotInKb) {
+      // Not in knowledge base: "Learn more" link to AMFI, no date
+      sourceHtml += `<a href="https://www.mutualfundssahihai.com/en" target="_blank" rel="noopener" class="source-link">Learn more</a>`;
+    } else if (sourceUrl) {
+      // Normal answer: "Source: groww.in" link + date
+      sourceHtml += `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener" class="source-link">Source: groww.in</a>`;
+      if (fetchedDate) {
+        sourceHtml += `<span class="source-date">Last updated from sources: ${escapeHtml(fetchedDate)}</span>`;
+      }
+    }
+
+    if (sourceHtml) {
+      sourceDiv.innerHTML = sourceHtml;
+      div.appendChild(sourceDiv);
+    }
   }
 
-  // Threshold badge
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function updateDebugPanel(debug) {
+  if (!debug || !isDebugMode) return;
+
   const passed = debug.threshold_passed === true;
   thresholdBadge.textContent = 'Threshold: ' + (passed ? 'PASSED' : 'FAILED');
   thresholdBadge.className = 'debug-badge ' + (passed ? 'pass' : 'fail');
 
-  // Rewritten query
-  if (debug.rewritten_query) {
-    debugRewritten.textContent = debug.rewritten_query;
-    debugRewritten.classList.remove('debug-none');
-  } else {
-    debugRewritten.textContent = '(none)';
-    debugRewritten.classList.add('debug-none');
-  }
-
-  // Matches
   if (debug.matches && debug.matches.length > 0) {
     debugMatches.innerHTML = debug.matches.map(m => `
       <div class="debug-match">
@@ -269,13 +248,13 @@ function updateDebugPanel(debug) {
           <span class="match-id">${escapeHtml(m.chunk_id)}</span>
           <span class="match-score">${(m.score * 100).toFixed(1)}%</span>
         </div>
+        <div class="match-source">${escapeHtml(m.scheme_name || '')}</div>
       </div>
     `).join('');
   } else {
     debugMatches.innerHTML = '<div class="debug-none">No matches above threshold</div>';
   }
 
-  // Guardrail
   if (debug.guardrail) {
     debugGuardrail.textContent = debug.guardrail;
     debugGuardrail.className = 'debug-guardrail';
@@ -286,10 +265,9 @@ function updateDebugPanel(debug) {
 }
 
 function resetDebugPanel() {
+  if (!isDebugMode) return;
   thresholdBadge.textContent = 'Threshold: —';
   thresholdBadge.className = 'debug-badge fail';
-  debugRewritten.textContent = '(none)';
-  debugRewritten.classList.add('debug-none');
   debugMatches.innerHTML = '<div class="debug-none">Ask a question to see retrieval details</div>';
   debugGuardrail.textContent = '(none)';
   debugGuardrail.className = 'debug-none';
@@ -301,12 +279,12 @@ async function checkHealth() {
     const data = await res.json();
     if (data.ok) {
       setStatus(true, data.index_exists ? 'API ready • Index exists' : 'API ready • Index missing');
-      if (!data.index_exists) showError('Knowledge base not built. Click "Rebuild Index" or run ingest.');
+      if (!data.index_exists) showError('Knowledge base not built. Run POST /index or `python -m src.ingest`.');
       return data.index_exists;
     }
   } catch (e) {
     setStatus(false, 'API unreachable');
-    showError('Cannot connect to API. Is the server running?');
+    showError('Cannot connect to API. Is the server running at http://127.0.0.1:8000?');
   }
   return false;
 }
@@ -314,6 +292,9 @@ async function checkHealth() {
 async function sendQuestion() {
   const question = inputEl.value.trim();
   if (!question || isLoading) return;
+
+  // Store user message for potential error recovery
+  lastUserMessage = question;
 
   addMessage('user', question);
   inputEl.value = '';
@@ -324,34 +305,42 @@ async function sendQuestion() {
   hideError();
   resetDebugPanel();
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
   try {
-    // Send last 4 turns (2 user + 2 assistant) as history
-    const historyToSend = history.slice(-4);
     const res = await fetch(API_BASE + '/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, history: historyToSend })
+      body: JSON.stringify({ question }),
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
     const data = await res.json();
 
     if (res.status === 503) {
       showError(data.detail || 'Knowledge base not built.');
-      addMessage('bot', 'Knowledge base not built. Please run ingest first.');
+      addMessage('bot', 'Knowledge base not built. Please run ingest first.', '', '', false);
       return;
     }
 
-    addMessage('bot', data.answer, data.citations, data.debug);
+    const answer = data.answer || 'No answer received.';
+    const sourceUrl = data.source_url || '';
+    const fetchedDate = data.fetched_date || '';
+
+    addMessage('bot', answer, sourceUrl, fetchedDate, data.debug);
     updateDebugPanel(data.debug);
 
-    // Update history
-    history.push({ role: 'user', content: question });
-    history.push({ role: 'assistant', content: data.answer });
-    // Keep only last 8 messages (4 turns)
-    if (history.length > 8) history = history.slice(-8);
-
   } catch (e) {
-    showError('Request failed: ' + e.message);
-    addMessage('bot', 'Service temporarily unavailable. Please try again.');
+    clearTimeout(timeoutId);
+    if (e.name === 'AbortError') {
+      showError('Request timed out. Please try again.');
+    } else {
+      showError('Request failed: ' + e.message);
+    }
+    // Keep user's last message visible - re-add it
+    addMessage('bot', 'Service temporarily unavailable. Please try again.', '', '', false);
   } finally {
     isLoading = false;
     sendBtn.disabled = false;
@@ -359,29 +348,7 @@ async function sendQuestion() {
   }
 }
 
-async function rebuildIndex() {
-  if (isLoading) return;
-  isLoading = true;
-  indexBtn.disabled = true;
-  indexBtn.textContent = 'Rebuilding...';
-  hideError();
-
-  try {
-    const res = await fetch(API_BASE + '/index', { method: 'POST' });
-    const data = await res.json();
-    addMessage('bot', `Index rebuilt: ${data.file_count} files, ${data.chunk_count} chunks.`);
-    setStatus(true, 'API ready • Index exists');
-  } catch (e) {
-    showError('Rebuild failed: ' + e.message);
-  } finally {
-    isLoading = false;
-    indexBtn.disabled = false;
-    indexBtn.textContent = 'Rebuild Index';
-  }
-}
-
 sendBtn.addEventListener('click', sendQuestion);
-indexBtn.addEventListener('click', rebuildIndex);
 inputEl.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
