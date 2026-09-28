@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tathya desktop home</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&amp;family=DM+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'DM Sans',sans-serif;background:#EEF3F9;color:#0F172A}
+a{color:#0369A1}a:hover{color:#075985}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; background: #EEF3F9; padding: 20px; display: grid; grid-template-rows: 64px minmax(0, 1fr); gap: 20px; font-family: 'DM Sans', sans-serif; color: #0F172A">
+<header style="display: flex; align-items: center; justify-content: space-between; padding: 0 4px">
+<div style="display: flex; align-items: center; gap: 10px; width: 280px">
+<div style="width: 40px; height: 40px; border-radius: 12px; background: #0B2A5B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 24px; line-height: 1; position: relative">t<span style="position: absolute; right: 8px; top: 8px; width: 6px; height: 6px; border-radius: 50%; background: #0EA5E9"></span></div>
+<span style="font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 24px; letter-spacing: -0.5px; line-height: 1"><span style="color: #0B2A5B">tath</span><span style="color: #0EA5E9">ya</span></span>
+</div>
+<nav aria-label="Main" style="display: flex; gap: 4px; padding: 5px; background: #FFFFFF; border: 1px solid #E3E8EF; border-radius: 999px">
+<a href="Desktop.dc.html" style="height: 40px; padding: 0 20px; border-radius: 999px; background: #EAF2FF; color: #0B2A5B; display: flex; align-items: center; font-size: 14px; font-weight: 700; text-decoration: none">Chat</a>
+<a href="#funds" style="height: 40px; padding: 0 20px; border-radius: 999px; color: #475569; display: flex; align-items: center; font-size: 14px; font-weight: 500; text-decoration: none">Funds</a>
+<a href="#about" style="height: 40px; padding: 0 20px; border-radius: 999px; color: #475569; display: flex; align-items: center; font-size: 14px; font-weight: 500; text-decoration: none">About</a>
+</nav>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px; width: 420px">
+<span style="display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px; background: #E0F2FE; color: #075985; font-size: 13px; font-weight: 500">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#075985" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"></path><path d="M9 12l2 2 4-4"></path></svg>
+<span>Facts-only. No investment advice.</span>
+</span>
+<a href="Desktop.dc.html" style="height: 44px; padding: 0 18px; border-radius: 999px; background: #0B2A5B; color: #FFFFFF; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; text-decoration: none">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+<span>New chat</span>
+</a>
+</div>
+</header>
+<div style="display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 20px; min-height: 0">
+<aside style="background: #FFFFFF; border-radius: 24px; padding: 18px; display: flex; flex-direction: column; gap: 18px; min-height: 0">
+<nav id="funds" aria-label="Funds covered" style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 12px; font-weight: 500; color: #64748B; padding: 0 10px 6px 10px">Funds covered</div>
+<button style="text-align: left; background: transparent; border: none; border-radius: 12px; padding: 9px 10px; display: flex; align-items: center; gap: 10px; cursor: pointer; font-family: 'DM Sans', sans-serif"><span style="width: 12px; height: 12px; border-radius: 4px; background: #DBEEFD; border: 1px solid #CBD5E1; flex-shrink: 0"></span><span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 14px; font-weight: 700; color: #0F172A">HDFC Large Cap Fund</span><span style="font-size: 12px; color: #64748B">Large Cap · Expense ratio: 1.03%</span></span></button>
+<button style="text-align: left; background: transparent; border: none; border-radius: 12px; padding: 9px 10px; display: flex; align-items: center; gap: 10px; cursor: pointer; font-family: 'DM Sans', sans-serif"><span style="width: 12px; height: 12px; border-radius: 4px; background: #E3E6FB; border: 1px solid #CBD5E1; flex-shrink: 0"></span><span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 14px; font-weight: 700; color: #0F172A">HDFC Flexi Cap Fund</span><span style="font-size: 12px; color: #64748B">Flexi Cap · Expense ratio: 0.77%</span></span></button>
+<button style="text-align: left; background: transparent; border: none; border-radius: 12px; padding: 9px 10px; display: flex; align-items: center; gap: 10px; cursor: pointer; font-family: 'DM Sans', sans-serif"><span style="width: 12px; height: 12px; border-radius: 4px; background: #D5F5EE; border: 1px solid #CBD5E1; flex-shrink: 0"></span><span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 14px; font-weight: 700; color: #0F172A">HDFC ELSS Tax Saver Fund</span><span style="font-size: 12px; color: #64748B">ELSS · 3-year lock-in</span></span></button>
+<button style="text-align: left; background: transparent; border: none; border-radius: 12px; padding: 9px 10px; display: flex; align-items: center; gap: 10px; cursor: pointer; font-family: 'DM Sans', sans-serif"><span style="width: 12px; height: 12px; border-radius: 4px; background: #FCEFCB; border: 1px solid #CBD5E1; flex-shrink: 0"></span><span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 14px; font-weight: 700; color: #0F172A">HDFC Small Cap Fund</span><span style="font-size: 12px; color: #64748B">Small Cap · Expense ratio: 0.78%</span></span></button>
+<button style="text-align: left; background: transparent; border: none; border-radius: 12px; padding: 9px 10px; display: flex; align-items: center; gap: 10px; cursor: pointer; font-family: 'DM Sans', sans-serif"><span style="width: 12px; height: 12px; border-radius: 4px; background: #E2E8F0; border: 1px solid #CBD5E1; flex-shrink: 0"></span><span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 14px; font-weight: 700; color: #0F172A">HDFC Balanced Advantage Fund</span><span style="font-size: 12px; color: #64748B">Hybrid fund · Expense ratio: 0.78%</span></span></button>
+</nav>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 12px; font-weight: 500; color: #64748B; padding: 0 10px 6px 10px">Recent questions</div>
+<button style="text-align: left; background: transparent; border: none; border-radius: 10px; padding: 9px 10px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; color: #334155">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><path d="M5 5h14v10H9l-4 4V5z"></path></svg>
+<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">What is the expense ratio of HDFC Large Cap Fund?</span>
+</button>
+<button style="text-align: left; background: transparent; border: none; border-radius: 10px; padding: 9px 10px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; color: #334155">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><path d="M5 5h14v10H9l-4 4V5z"></path></svg>
+<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Who manages HDFC Large Cap Fund?</span>
+</button>
+</div>
+<div style="flex-grow: 1"></div>
+<div id="about" style="background: #F3F7FC; border-radius: 18px; padding: 14px; display: flex; align-items: center; gap: 10px">
+<div style="width: 38px; height: 38px; border-radius: 50%; background: #0B2A5B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0">HS</div>
+<div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1">
+<span style="font-size: 12px; color: #64748B">Built by</span>
+<span style="font-size: 14px; font-weight: 700; color: #0F172A">Harshal S</span>
+</div>
+<a href="https://www.linkedin.com/in/imharshal11" aria-label="Harshal S on LinkedIn" style="width: 36px; height: 36px; border-radius: 50%; background: #FFFFFF; border: 1px solid #E3E8EF; display: flex; align-items: center; justify-content: center; flex-shrink: 0">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0A66C2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
+</a>
+<a href="https://github.com/imharshal11" aria-label="Harshal S on GitHub" style="width: 36px; height: 36px; border-radius: 50%; background: #FFFFFF; border: 1px solid #E3E8EF; display: flex; align-items: center; justify-content: center; flex-shrink: 0">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"></path></svg>
+</a>
+</div>
+</aside>
+<main style="background: #FFFFFF; border-radius: 24px; padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; min-height: 0">
+<div style="width: 132px; height: 132px; border-radius: 50%; background: #EEF6FD; display: flex; align-items: center; justify-content: center">
+<div style="width: 98px; height: 98px; border-radius: 50%; background: #DBEEFD; display: flex; align-items: center; justify-content: center">
+<div style="width: 64px; height: 64px; border-radius: 18px; background: #0B2A5B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 38px; line-height: 1; position: relative">t<span style="position: absolute; right: 13px; top: 13px; width: 9px; height: 9px; border-radius: 50%; background: #0EA5E9"></span></div>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 760px">
+<h1 style="margin: 0; text-align: center; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 36px; line-height: 1.2; letter-spacing: -0.6px; color: #0F172A">Hi, I'm <span style="color: #0284C7">Tathya</span>. Which fund fact can I find for you?</h1>
+<p style="margin: 0; text-align: center; font-size: 16px; line-height: 1.5; color: #475569">I answer only from 5 HDFC fund pages, and I show the source and date for every answer.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 760px">
+<button style="height: 38px; padding: 0 16px; border-radius: 999px; background: #FFFFFF; border: 1px solid #E3E8EF; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: #0F172A; cursor: pointer">Expense ratio</button>
+<button style="height: 38px; padding: 0 16px; border-radius: 999px; background: #FFFFFF; border: 1px solid #E3E8EF; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: #0F172A; cursor: pointer">Exit load</button>
+<button style="height: 38px; padding: 0 16px; border-radius: 999px; background: #FFFFFF; border: 1px solid #E3E8EF; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: #0F172A; cursor: pointer">Minimum SIP</button>
+<button style="height: 38px; padding: 0 16px; border-radius: 999px; background: #FFFFFF; border: 1px solid #E3E8EF; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: #0F172A; cursor: pointer">Lock-in period</button>
+<button style="height: 38px; padding: 0 16px; border-radius: 999px; background: #FFFFFF; border: 1px solid #E3E8EF; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: #0F172A; cursor: pointer">Riskometer</button>
+<button style="height: 38px; padding: 0 16px; border-radius: 999px; background: #FFFFFF; border: 1px solid #E3E8EF; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: #0F172A; cursor: pointer">Benchmark</button>
+<button style="height: 38px; padding: 0 16px; border-radius: 999px; background: #FFFFFF; border: 1px solid #E3E8EF; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: #0F172A; cursor: pointer">Fund managers</button>
+</div>
+<div style="width: 100%; max-width: 780px; box-sizing: border-box; background: #FFFFFF; border: 1px solid #D5DDE8; border-radius: 24px; padding: 16px 16px 14px 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 10px 30px rgba(11,42,91,0.08)">
+<label for="q-desk" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Ask a question</label>
+<textarea id="q-desk" rows="2" placeholder="Ask a question, for example: &quot;What is the exit load of HDFC Small Cap Fund?&quot;" style="border: none; outline: none; resize: none; background: transparent; font-family: 'DM Sans', sans-serif; font-size: 16px; line-height: 1.5; color: #0F172A"></textarea>
+<div style="display: flex; align-items: center; justify-content: space-between">
+<div style="display: flex; align-items: center; gap: 8px">
+<label for="fund-desk" style="font-size: 13px; color: #64748B">Fund</label>
+<select id="fund-desk" style="height: 40px; padding: 0 14px; border-radius: 999px; background: #F1F5F9; border: 1px solid #E3E8EF; font-family: 'DM Sans', sans-serif; font-size: 14px; color: #0F172A">
+<option>All 5 funds</option>
+<option>HDFC Large Cap Fund</option>
+<option>HDFC Flexi Cap Fund</option>
+<option>HDFC ELSS Tax Saver Fund</option>
+<option>HDFC Small Cap Fund</option>
+<option>HDFC Balanced Advantage Fund</option>
+</select>
+</div>
+<button style="height: 44px; padding: 0 20px; border-radius: 999px; background: #0B2A5B; color: #FFFFFF; border: none; display: flex; align-items: center; gap: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer">
+<span>Send</span>
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"></path><path d="M6 11l6-6 6 6"></path></svg>
+</button>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center">
+<span style="font-size: 13px; color: #64748B">Funds covered</span>
+<span style="height: 32px; padding: 0 12px; border-radius: 999px; background: #DBEEFD; display: flex; align-items: center; font-size: 13px; font-weight: 500; color: #0F172A">Large Cap</span>
+<span style="height: 32px; padding: 0 12px; border-radius: 999px; background: #E3E6FB; display: flex; align-items: center; font-size: 13px; font-weight: 500; color: #0F172A">Flexi Cap</span>
+<span style="height: 32px; padding: 0 12px; border-radius: 999px; background: #D5F5EE; display: flex; align-items: center; font-size: 13px; font-weight: 500; color: #0F172A">ELSS Tax Saver</span>
+<span style="height: 32px; padding: 0 12px; border-radius: 999px; background: #FCEFCB; display: flex; align-items: center; font-size: 13px; font-weight: 500; color: #0F172A">Small Cap</span>
+<span style="height: 32px; padding: 0 12px; border-radius: 999px; background: #E2E8F0; display: flex; align-items: center; font-size: 13px; font-weight: 500; color: #0F172A">Balanced Advantage</span>
+</div>
+<p role="note" aria-label="Investment disclaimer" style="margin: 0; max-width: 760px; text-align: center; font-size: 12px; line-height: 1.5; color: #64748B">Mutual Fund investments are subject to market risks, read all scheme related documents carefully. Tathya shares facts from public Groww pages (as of 27 Sep 2026) for information only. It is not investment advice or a recommendation to buy or sell any fund.</p>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
