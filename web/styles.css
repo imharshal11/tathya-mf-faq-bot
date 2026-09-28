@@ -172,10 +172,10 @@ button { font: inherit; cursor: pointer; }
     overflow-y: auto;
   }
   .sidebar h3 {
-    font: 600 12px var(--font-poppins);
+    font: 500 12px var(--font-dm-sans);
     color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    text-transform: none;
+    letter-spacing: 0;
   }
   .fund-list { display: flex; flex-direction: column; gap: 8px; }
   .fund-list-item {
@@ -226,7 +226,7 @@ button { font: inherit; cursor: pointer; }
     flex-direction: column;
     gap: 12px;
   }
-  .credit-card .label { font: 400 11px var(--font-dm-sans); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .credit-card .label { font: 500 12px var(--font-dm-sans); color: var(--text-muted); text-transform: none; letter-spacing: 0; }
   .credit-card .avatar {
     width: 40px;
     height: 40px;
@@ -266,6 +266,9 @@ button { font: inherit; cursor: pointer; }
   padding: 48px 24px;
   text-align: center;
   min-height: 60vh;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
 }
 .empty-circles {
   position: relative;
@@ -318,7 +321,25 @@ button { font: inherit; cursor: pointer; }
   flex-direction: column;
   gap: 16px;
 }
+.composer-card .composer-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.composer-card .fund-field {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex: 1;
+}
+.composer-card .fund-field label {
+  font: 500 12px var(--font-dm-sans);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
 .fund-select {
+  flex: 1;
   padding: 12px 16px;
   background: var(--border);
   border: none;
@@ -329,13 +350,13 @@ button { font: inherit; cursor: pointer; }
   appearance: none;
 }
 .send-pill {
-  width: 100%;
   padding: 14px 24px;
   background: var(--navy);
   color: #fff;
   border: none;
   border-radius: 999px;
   font: 500 14px var(--font-dm-sans);
+  white-space: nowrap;
 }
 .chat-header-bar {
   display: flex;
@@ -374,12 +395,44 @@ button { font: inherit; cursor: pointer; }
   .fund-pill.small-cap { background: var(--small-cap); color: var(--text); }
   .fund-pill.balanced { background: var(--balanced); color: var(--text); }
   .fund-pill.active { background: var(--navy); color: #fff; }
+  .empty-state .disclaimer-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    max-width: 760px;
+    margin-top: 24px;
+  }
+  .empty-state .disclaimer-card .icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: var(--text-muted);
+  }
+  .empty-state .disclaimer-card .text {
+    font: 400 12px var(--font-dm-sans);
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
 }
 
 /* ==== DESKTOP ≥ 1024px: 3rd column source card ==== */
 @media (min-width: 1024px) {
   .app-shell {
     grid-template-columns: 280px 1fr 320px;
+    gap: 20px;
+    padding: 76px 20px 20px;
+  }
+  .main-content {
+    background: var(--card);
+    border-radius: 24px;
+    min-height: calc(100vh - 96px);
+    display: flex;
+    flex-direction: column;
   }
   .source-card {
     background: var(--card);
@@ -388,7 +441,7 @@ button { font: inherit; cursor: pointer; }
     display: flex;
     flex-direction: column;
     gap: 16px;
-    height: calc(100vh - 56px);
+    height: calc(100vh - 96px);
     overflow-y: auto;
   }
   .source-card h3 {
@@ -397,23 +450,23 @@ button { font: inherit; cursor: pointer; }
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
-  .source-facts { display: flex; flex-direction: column; gap: 12px; }
+  .source-facts { display: flex; flex-direction: column; gap: 0; }
   .source-fact {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 12px;
-    background: var(--border);
-    border-radius: 12px;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #EEF2F6;
   }
+  .source-fact:last-child { border-bottom: none; }
   .source-fact-label {
-    font: 400 11px var(--font-dm-sans);
+    font: 500 13px var(--font-dm-sans);
     color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    text-transform: none;
+    letter-spacing: 0;
   }
   .source-fact-value {
-    font: 500 13px var(--font-dm-sans);
+    font: 700 13px var(--font-dm-sans);
     color: var(--text);
   }
   .open-source-btn {
@@ -424,14 +477,17 @@ button { font: inherit; cursor: pointer; }
     border: none;
     border-radius: 12px;
     font: 500 13px var(--font-dm-sans);
+    margin-top: 8px;
   }
   .source-disclaimer {
-    margin-top: auto;
-    padding: 12px;
+    padding: 12px 16px;
     background: #FFF4E5;
     border: 1px solid #FFE0B2;
     border-radius: 12px;
-    font: 400 11px var(--font-dm-sans);
+    font: 400 12px var(--font-dm-sans);
     color: #7C2D12;
+    line-height: 1.5;
+    margin-top: 14px;
   }
+  .source-disclaimer strong { display: inline; margin-right: 8px; }
 }

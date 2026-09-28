@@ -228,9 +228,9 @@
           </div>
           <div class="composer-card">
             <textarea class="focus-ring" placeholder='Ask a question, for example: "What is the exit load of HDFC Small Cap Fund?"' rows="3" style="font: inherit; border: 1px solid var(--border); border-radius: 12px; padding: 12px; resize: none; outline: none; font-family: var(--font-dm-sans); font-size: 14px;"></textarea>
-            <div style="display: flex; gap: 12px; align-items: flex-end;">
-              <div style="flex: 1;">
-                <label for="fund-select" style="font: 400 12px var(--font-dm-sans); color: var(--text-secondary); display: block; margin-bottom: 4px;">Fund</label>
+            <div class="composer-row">
+              <div class="fund-field">
+                <label for="fund-select">Fund</label>
                 <select id="fund-select" class="fund-select focus-ring">
                   <option value="all">All 5 funds</option>
                   <option value="large-cap">HDFC Large Cap Fund</option>
@@ -240,21 +240,11 @@
                   <option value="balanced">HDFC Balanced Advantage Fund</option>
                 </select>
               </div>
-              <button type="button" class="send-pill focus-ring" style="width: auto; min-width: 120px;">Send</button>
+              <button type="button" class="send-pill focus-ring">Send</button>
             </div>
           </div>
-          <div style="margin-top: 24px;">
-            <p style="font: 500 12px var(--font-dm-sans); color: var(--text-muted); margin-bottom: 8px;">Funds covered</p>
-            <div class="fund-pills" role="tablist" aria-label="Fund selector" style="display: flex; flex-wrap: wrap; gap: 8px;">
-              <button class="fund-pill large-cap focus-ring" role="tab" aria-selected="false" data-fund="large-cap" type="button">Large Cap</button>
-              <button class="fund-pill flexi-cap focus-ring" role="tab" aria-selected="false" data-fund="flexi-cap" type="button">Flexi Cap</button>
-              <button class="fund-pill elss focus-ring" role="tab" aria-selected="false" data-fund="elss" type="button">ELSS Tax Saver</button>
-              <button class="fund-pill small-cap focus-ring" role="tab" aria-selected="false" data-fund="small-cap" type="button">Small Cap</button>
-              <button class="fund-pill balanced focus-ring" role="tab" aria-selected="false" data-fund="balanced" type="button">Balanced Advantage</button>
-            </div>
-          </div>
-          <div class="disclaimer-card" role="note" style="margin-top: 24px; max-width: 480px;">
-            <svg class="icon" width="16" height="16" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
+          <div class="disclaimer-card" role="note">
+            <svg class="icon" width="14" height="14" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
             <div class="text">Mutual Fund investments are subject to market risks, read all scheme related documents carefully. Tathya shares facts from public Groww pages (as of 27 Sep 2026) for information only. It is not investment advice or a recommendation to buy or sell any fund.</div>
           </div>
         </div>
