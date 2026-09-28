@@ -15,7 +15,8 @@
   <meta name="theme-color" content="#0B2A5B">
 </head>
 <body>
-  <div id="home-view" class="mobile-only">
+  <div class="mobile-only">
+    <div id="home-view" class="view is-active">
     <header class="header">
       <img src="/brand/icon.svg" alt="" width="40" height="40">
       <span class="wordmark">tath<span style="color: var(--sky)">ya</span></span>
@@ -94,7 +95,7 @@
     </nav>
   </div>
 
-  <div id="chat-view" hidden class="mobile-only">
+  <div id="chat-view" class="view" hidden>
     <header class="chat-header">
       <button class="back focus-ring" aria-label="Back to home" type="button">
         <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"></path></svg>
@@ -122,6 +123,7 @@
 
     <p style="padding: 0 16px; font: 400 11px var(--font-dm-sans); color: var(--text-muted); text-align: center;">Mutual fund investments carry market risk. Facts only, not advice.</p>
   </div>
+</div>
 
   <div class="desktop-view desktop-only">
     <header class="topbar">
