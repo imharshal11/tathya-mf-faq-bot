@@ -96,6 +96,7 @@ class FundManager(BaseModel):
 
 class FundResponse(BaseModel):
     full_name: str
+    display_name: str
     short_name: str
     category: str
     source_url: str
@@ -138,10 +139,12 @@ def _parse_fund_file(filepath: Path) -> FundResponse:
     fetched_date = fetched_date_match.group(1).strip() if fetched_date_match else ""
     
     # Parse full name and short name
-    # scheme_name like "HDFC Large Cap Fund - Direct Growth" -> full_name "HDFC Large Cap Fund (Direct Growth)", short_name "Large Cap"
-    full_name = scheme_name.replace(" - Direct Growth", " (Direct Growth)").replace(" - Direct Plan Growth", " (Direct Growth)")
-    full_name = full_name.replace("(formerly HDFC Equity Fund)", "").strip()
+    # scheme_name like "HDFC Large Cap Fund - Direct Growth" -> full_name "HDFC Large Cap Fund", display_name "HDFC Large Cap Fund (Direct Growth)"
+    full_name = scheme_name.replace(" - Direct Growth", "").replace(" - Direct Plan Growth", "").replace("(formerly HDFC Equity Fund)", "").strip()
     full_name = " ".join(full_name.split())
+    
+    display_name = scheme_name.replace(" - Direct Growth", " (Direct Growth)").replace(" - Direct Plan Growth", " (Direct Growth)").replace("(formerly HDFC Equity Fund)", "").strip()
+    display_name = " ".join(display_name.split())
     
     # Short name from category
     short_name = category.replace(" (Hybrid)", "")
@@ -178,6 +181,9 @@ def _parse_fund_file(filepath: Path) -> FundResponse:
                 match = re.search(r"(\d+%.+?)(?:\.|$)", text)
                 exit_load = match.group(1).strip() if match else text[:100]
     
+    # Replace "redeemed" with "sold" in exit_load output
+    exit_load = exit_load.replace("redeemed", "sold")
+    
     # Extract min SIP
     min_sip = ""
     if "Minimum SIP" in sections:
@@ -210,7 +216,7 @@ def _parse_fund_file(filepath: Path) -> FundResponse:
     aum = ""
     if "Fund Size (AUM)" in sections:
         match = re.search(r"([\d,]+\.?\d*\s*crore)", sections["Fund Size (AUM)"], re.IGNORECASE)
-        aum = match.group(1).strip() if match else ""
+        aum = f"₹{match.group(1).strip()}" if match else ""
     
     # Extract fund managers
     fund_managers = []
@@ -236,6 +242,7 @@ def _parse_fund_file(filepath: Path) -> FundResponse:
     
     return FundResponse(
         full_name=full_name,
+        display_name=display_name,
         short_name=short_name,
         category=category,
         source_url=source_url,
