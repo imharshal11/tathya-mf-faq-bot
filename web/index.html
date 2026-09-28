@@ -2,370 +2,127 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Tathya — HDFC Mutual Fund FAQ Assistant</title>
-  <style>
-    * { box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; background: #f5f5f5; min-height: 100vh; display: flex; flex-direction: column; }
-    header { background: #fff; border-bottom: 1px solid #e0e0e0; padding: 16px 24px; }
-    h1 { margin: 0; font-size: 1.25rem; color: #1a1a1a; }
-    .tagline { font-size: 0.8rem; color: #666; margin-top: 4px; }
-    .status { font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; margin-top: 8px; display: inline-block; }
-    .status.ok { background: #e8f5e9; color: #2e7d32; }
-    .status.err { background: #ffebee; color: #c62828; }
-    main { flex: 1; display: flex; flex-direction: column; max-width: 720px; width: 100%; margin: 0 auto; padding: 24px 16px; }
-    .welcome { margin-bottom: 16px; }
-    .welcome-title { font-size: 1.1rem; font-weight: 600; color: #1a1a1a; margin-bottom: 4px; }
-    .welcome-text { font-size: 0.95rem; color: #444; }
-    .disclaimer { background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 12px 16px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 16px; font-weight: 500; }
-    .sample-questions { margin-bottom: 20px; }
-    .sample-title { font-size: 0.8rem; font-weight: 600; color: #666; margin-bottom: 10px; }
-    .sample-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-    .sample-chip { background: #fff; border: 1px solid #ddd; border-radius: 20px; padding: 8px 14px; font-size: 0.85rem; color: #333; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
-    .sample-chip:hover { background: #0066ff; color: #fff; border-color: #0066ff; }
-    .chat-container { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; }
-    .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; max-height: 500px; }
-    .msg { display: flex; flex-direction: column; gap: 4px; max-width: 85%; }
-    .msg.user { align-self: flex-end; }
-    .msg.bot { align-self: flex-start; }
-    .msg-content { padding: 10px 14px; border-radius: 12px; line-height: 1.5; }
-    .msg.user .msg-content { background: #0066ff; color: #fff; border-bottom-right-radius: 4px; }
-    .msg.bot .msg-content { background: #f0f0f0; color: #1a1a1a; border-bottom-left-radius: 4px; }
-    .msg.bot .msg-content.refusal { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
-    .source-line { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(0,0,0,0.1); font-size: 0.8rem; }
-    .msg.user .source-line { border-top: 1px solid rgba(255,255,255,0.2); }
-    .source-link { color: #0066ff; text-decoration: none; font-weight: 500; }
-    .source-link:hover { text-decoration: underline; }
-    .source-date { color: #888; }
-    .error-banner { background: #ffebee; color: #c62828; padding: 10px 16px; border-radius: 8px; font-size: 0.85rem; margin: 0 16px 16px; display: none; }
-    .input-area { padding: 16px; border-top: 1px solid #e0e0e0; background: #fff; }
-    .input-row { display: flex; gap: 8px; }
-    textarea { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 0.95rem; resize: none; min-height: 48px; max-height: 120px; }
-    textarea:focus { outline: none; border-color: #0066ff; box-shadow: 0 0 0 3px rgba(0,102,255,0.1); }
-    button.send { background: #0066ff; color: #fff; border: none; border-radius: 8px; padding: 0 20px; font-weight: 600; cursor: pointer; height: 48px; }
-    button.send:disabled { background: #ccc; cursor: not-allowed; }
-    button.send:hover:not(:disabled) { background: #0052cc; }
-    .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-radius: 50%; border-top-color: transparent; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Debug panel - hidden by default */
-    .debug-panel { display: none; width: 320px; flex-shrink: 0; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 16px; max-height: 400px; }
-    .debug-panel.visible { display: flex; flex-direction: column; }
-    .debug-header { padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; }
-    .debug-header h3 { margin: 0; font-size: 0.85rem; font-weight: 600; color: #333; }
-    .debug-badge { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
-    .debug-badge.pass { background: #e8f5e9; color: #2e7d32; }
-    .debug-badge.fail { background: #ffebee; color: #c62828; }
-    .debug-content { flex: 1; overflow-y: auto; padding: 12px 16px; font-size: 0.75rem; }
-    .debug-section { margin-bottom: 16px; }
-    .debug-section:last-child { margin-bottom: 0; }
-    .debug-section-title { font-weight: 600; color: #333; margin-bottom: 8px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; }
-    .debug-matches { display: flex; flex-direction: column; gap: 8px; }
-    .debug-match { padding: 8px; background: #fafafa; border-radius: 6px; border: 1px solid #eee; }
-    .match-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-    .match-id { font-family: monospace; font-size: 0.7rem; color: #666; }
-    .match-score { font-weight: 600; color: #0066ff; }
-    .match-source { font-size: 0.7rem; color: #888; margin-bottom: 4px; }
-    .match-excerpt { color: #555; white-space: pre-wrap; line-height: 1.4; }
-    .debug-guardrail { padding: 8px; background: #fff3cd; border: 1px solid #ffeeba; border-radius: 4px; color: #856404; }
-    .debug-none { color: #999; font-style: italic; }
-
-    @media (max-width: 900px) {
-      main { padding: 16px 12px; }
-      .debug-panel { width: 100%; max-height: 300px; }
-    }
-  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/brand/favicon-16.png">
+  <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+  <meta name="theme-color" content="#0B2A5B">
 </head>
 <body>
-  <header>
-    <h1>Tathya — HDFC Mutual Fund FAQ Assistant</h1>
-    <p class="tagline">Mutual fund facts, with proof.</p>
-    <span id="status" class="status err">Checking API...</span>
-  </header>
-  <main>
-    <div class="welcome">
-      <div class="welcome-title">Welcome to Tathya.</div>
-      <div class="welcome-text">Ask me facts about 5 HDFC Mutual Fund schemes.</div>
+  <div id="home-view">
+    <header class="header">
+      <img src="/brand/icon.svg" alt="" width="40" height="40">
+      <span class="wordmark">tath<span style="color: var(--sky)">ya</span></span>
+      <button class="focus-ring" aria-label="About Tathya" style="margin-left: auto; width: 40px; height: 40px; border-radius: 50%; background: var(--border); border: none; display: flex; align-items: center; justify-content: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-secondary);"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
+      </button>
+    </header>
+
+    <div class="home-greeting">
+      <div class="hi">Hi there!</div>
+      <div class="ask">Ask me about 5 HDFC mutual funds. Every answer shows its source.</div>
     </div>
 
-    <div class="disclaimer">Facts-only. No investment advice.</div>
+    <button class="start-chat-btn focus-ring" type="button">
+      Start new chat
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left: 8px; vertical-align: middle;">
+        <circle cx="12" cy="12" r="10" stroke="var(--sky)" stroke-width="2.5" fill="none"></circle>
+        <path d="M12 8v8M8 12h8" stroke="var(--sky)" stroke-width="2.5" stroke-linecap="round"></path>
+      </svg>
+    </button>
 
-    <div class="sample-questions">
-      <div class="sample-title">Example questions (click to ask):</div>
-      <div id="sample-chips" class="sample-chips"></div>
+    <div class="trust-pill">Facts-only. No investment advice.</div>
+
+    <section style="padding: 0 16px 16px;">
+      <h3 style="font: 600 12px var(--font-poppins); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Funds covered</h3>
+      <p style="font: 400 12px var(--font-dm-sans); color: var(--text-secondary); margin-bottom: 12px;">Tap a fund to ask about it</p>
+      <div class="fund-tiles">
+        <article class="tile large-cap focus-ring" tabindex="0" data-fund="large-cap">
+          <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></div>
+          <div class="name">Large Cap</div>
+          <div class="fact" data-fact="expense-ratio"></div>
+        </article>
+        <article class="tile flexi-cap focus-ring" tabindex="0" data-fund="flexi-cap">
+          <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></div>
+          <div class="name">Flexi Cap</div>
+          <div class="fact" data-fact="expense-ratio"></div>
+        </article>
+        <article class="tile elss focus-ring" tabindex="0" data-fund="elss">
+          <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></div>
+          <div class="name">ELSS Tax Saver</div>
+          <div class="fact" data-fact="lock-in"></div>
+        </article>
+        <article class="tile small-cap focus-ring" tabindex="0" data-fund="small-cap">
+          <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></div>
+          <div class="name">Small Cap</div>
+          <div class="fact" data-fact="exit-load"></div>
+        </article>
+        <article class="tile balanced focus-ring" tabindex="0" data-fund="balanced" style="grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 12px;">
+          <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></div>
+          <div class="name" style="flex-shrink: 0;">Balanced Advantage</div>
+          <div class="fact" data-fact="hybrid-expense" style="flex: 1;"></div>
+        </article>
+      </div>
+    </section>
+
+    <div class="disclaimer-card" role="note">
+      <svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
+      <div class="text">Mutual Fund investments are subject to market risks, read all scheme related documents carefully. Tathya shares facts only, not investment advice.</div>
     </div>
 
-    <div class="chat-container">
-      <div id="error-banner" class="error-banner" style="display:none;"></div>
-      <div id="messages" class="messages"></div>
-      <div class="input-area">
-        <div class="input-row">
-          <textarea id="input" placeholder='Ask a question, for example: "What is the exit load of HDFC Small Cap Fund?"' rows="1"></textarea>
-          <button id="send-btn" class="send" type="button">Send</button>
-        </div>
-      </div>
+    <div class="credit-links">
+      <span style="font: 400 12px var(--font-dm-sans); color: var(--text-secondary);">Built by Harshal S</span>
+      <a href="https://www.linkedin.com/in/imharshal11" target="_blank" rel="noopener" aria-label="Harshal S on LinkedIn" class="focus-ring">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+      </a>
+      <a href="https://github.com/imharshal11" target="_blank" rel="noopener" aria-label="Harshal S on GitHub" class="focus-ring">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+      </a>
     </div>
 
-    <!-- Debug panel - only shown when ?debug=1 -->
-    <aside class="debug-panel" id="debug-panel">
-      <div class="debug-header">
-        <h3>Debug Panel</h3>
-        <span id="threshold-badge" class="debug-badge fail">Threshold: —</span>
-      </div>
-      <div class="debug-content">
-        <div class="debug-section">
-          <div class="debug-section-title">Top-k Matches</div>
-          <div id="debug-matches" class="debug-matches">
-            <div class="debug-none">Ask a question to see retrieval details</div>
-          </div>
-        </div>
-        <div class="debug-section">
-          <div class="debug-section-title">Guardrail</div>
-          <div id="debug-guardrail" class="debug-none">(none)</div>
-        </div>
-      </div>
-    </aside>
-  </main>
+    <nav class="bottom-nav" role="navigation" aria-label="Main navigation">
+      <button class="nav-item active focus-ring" data-view="home" type="button">Home</button>
+      <button class="nav-item focus-ring" data-view="chat" type="button">Chat</button>
+      <button class="nav-item focus-ring" data-view="funds" type="button">Funds</button>
+      <button class="nav-item focus-ring" data-view="about" type="button">About</button>
+    </nav>
+  </div>
 
-<script>
-const isLocalDev = window.location.port === '5173';
-const API_BASE = isLocalDev ? 'http://127.0.0.1:8000' : window.location.origin;
-const messagesEl = document.getElementById('messages');
-const inputEl = document.getElementById('input');
-const sendBtn = document.getElementById('send-btn');
-const statusEl = document.getElementById('status');
-const errorBanner = document.getElementById('error-banner');
-const thresholdBadge = document.getElementById('threshold-badge');
-const debugMatches = document.getElementById('debug-matches');
-const debugGuardrail = document.getElementById('debug-guardrail');
-const sampleChips = document.getElementById('sample-chips');
-const debugPanel = document.getElementById('debug-panel');
+  <div id="chat-view" hidden>
+    <header class="chat-header">
+      <button class="back focus-ring" aria-label="Back to home" type="button">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"></path></svg>
+      </button>
+      <span class="wordmark">tath<span style="color: var(--sky)">ya</span></span>
+      <button class="new-chat focus-ring" type="button" aria-label="New chat">New chat</button>
+    </header>
 
-let isLoading = false;
-let lastUserMessage = '';
+    <div class="fund-pills" role="tablist" aria-label="Fund selector">
+      <button class="fund-pill active focus-ring" role="tab" aria-selected="true" data-fund="large-cap" type="button">Large Cap</button>
+      <button class="fund-pill focus-ring" role="tab" aria-selected="false" data-fund="flexi-cap" type="button">Flexi Cap</button>
+      <button class="fund-pill focus-ring" role="tab" aria-selected="false" data-fund="elss" type="button">ELSS Tax Saver</button>
+      <button class="fund-pill focus-ring" role="tab" aria-selected="false" data-fund="small-cap" type="button">Small Cap</button>
+      <button class="fund-pill focus-ring" role="tab" aria-selected="false" data-fund="balanced" type="button">Balanced Advantage</button>
+    </div>
 
-// Check for ?debug=1 in URL
-const isDebugMode = new URLSearchParams(window.location.search).has('debug');
-if (isDebugMode) {
-  debugPanel.classList.add('visible');
-}
+    <div id="messages" class="messages" role="log" aria-live="polite" aria-label="Conversation"></div>
 
-// Example questions
-const SAMPLE_QUESTIONS = [
-  'What is the expense ratio of HDFC Large Cap Fund?',
-  'What is the lock-in period of HDFC ELSS Tax Saver Fund?',
-  'What is the exit load of HDFC Small Cap Fund?'
-];
+    <form class="composer" id="composer-form" autocomplete="off">
+      <input type="text" class="focus-ring" placeholder="Ask a question about a fund…" aria-label="Ask a question about a fund" required>
+      <button type="submit" class="focus-ring" aria-label="Send">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+      </button>
+    </form>
 
-function renderSampleChips() {
-  sampleChips.innerHTML = SAMPLE_QUESTIONS.map(q =>
-    `<button class="sample-chip" data-q="${escapeHtml(q)}">${escapeHtml(q)}</button>`
-  ).join('');
-  sampleChips.querySelectorAll('.sample-chip').forEach(btn => {
-    btn.addEventListener('click', () => {
-      inputEl.value = btn.dataset.q;
-      inputEl.style.height = 'auto';
-      inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
-      inputEl.focus();
-    });
-  });
-}
+    <p style="padding: 0 16px; font: 400 11px var(--font-dm-sans); color: var(--text-muted); text-align: center;">Mutual fund investments carry market risk. Facts only, not advice.</p>
+  </div>
 
-function setStatus(ok, text) {
-  statusEl.textContent = text;
-  statusEl.className = 'status ' + (ok ? 'ok' : 'err');
-}
-
-function showError(msg) {
-  errorBanner.textContent = msg;
-  errorBanner.style.display = 'block';
-}
-
-function hideError() {
-  errorBanner.style.display = 'none';
-}
-
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-function addMessage(role, content, sourceUrl = '', fetchedDate = '', debug = null) {
-  const div = document.createElement('div');
-  div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
-
-  const contentDiv = document.createElement('div');
-  const isRefusal = debug?.guardrail === 'advisory' || debug?.guardrail === 'returns' || debug?.guardrail === 'pii';
-  const isNotInKb = content === 'Not in the knowledge base' || content === 'Knowledge base not built. Please run ingest first.';
-  contentDiv.className = 'msg-content' + (isRefusal ? ' refusal' : '');
-  contentDiv.textContent = content;
-  div.appendChild(contentDiv);
-
-  // Add source line for bot messages
-  if (role === 'bot') {
-    const sourceDiv = document.createElement('div');
-    sourceDiv.className = 'source-line';
-    let sourceHtml = '';
-
-    if (debug?.guardrail === 'pii') {
-      // PII refusal: no link, no date
-    } else if (debug?.guardrail === 'advisory' || debug?.guardrail === 'returns') {
-      // Advisory/returns refusal: "Learn more" link only, no date
-      const url = debug.guardrail === 'advisory'
-        ? 'https://www.mutualfundssahihai.com/en'
-        : 'https://www.hdfcfund.com/mutual-funds/factsheets';
-      sourceHtml += `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="source-link">Learn more</a>`;
-    } else if (isNotInKb) {
-      // Not in knowledge base: "Learn more" link to AMFI, no date
-      sourceHtml += `<a href="https://www.mutualfundssahihai.com/en" target="_blank" rel="noopener" class="source-link">Learn more</a>`;
-    } else if (sourceUrl) {
-      // Normal answer: "Source: groww.in" link + date
-      sourceHtml += `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener" class="source-link">Source: groww.in</a>`;
-      if (fetchedDate) {
-        sourceHtml += `<span class="source-date">Last updated from sources: ${escapeHtml(fetchedDate)}</span>`;
-      }
-    }
-
-    if (sourceHtml) {
-      sourceDiv.innerHTML = sourceHtml;
-      div.appendChild(sourceDiv);
-    }
-  }
-
-  messagesEl.appendChild(div);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
-
-function updateDebugPanel(debug) {
-  if (!debug || !isDebugMode) return;
-
-  const passed = debug.threshold_passed === true;
-  thresholdBadge.textContent = 'Threshold: ' + (passed ? 'PASSED' : 'FAILED');
-  thresholdBadge.className = 'debug-badge ' + (passed ? 'pass' : 'fail');
-
-  if (debug.matches && debug.matches.length > 0) {
-    debugMatches.innerHTML = debug.matches.map(m => `
-      <div class="debug-match">
-        <div class="match-header">
-          <span class="match-id">${escapeHtml(m.chunk_id)}</span>
-          <span class="match-score">${(m.score * 100).toFixed(1)}%</span>
-        </div>
-        <div class="match-source">${escapeHtml(m.scheme_name || '')}</div>
-      </div>
-    `).join('');
-  } else {
-    debugMatches.innerHTML = '<div class="debug-none">No matches above threshold</div>';
-  }
-
-  if (debug.guardrail) {
-    debugGuardrail.textContent = debug.guardrail;
-    debugGuardrail.className = 'debug-guardrail';
-  } else {
-    debugGuardrail.textContent = '(none)';
-    debugGuardrail.className = 'debug-none';
-  }
-}
-
-function resetDebugPanel() {
-  if (!isDebugMode) return;
-  thresholdBadge.textContent = 'Threshold: —';
-  thresholdBadge.className = 'debug-badge fail';
-  debugMatches.innerHTML = '<div class="debug-none">Ask a question to see retrieval details</div>';
-  debugGuardrail.textContent = '(none)';
-  debugGuardrail.className = 'debug-none';
-}
-
-async function checkHealth() {
-  try {
-    const res = await fetch(API_BASE + '/health');
-    const data = await res.json();
-    if (data.ok) {
-      setStatus(true, data.index_exists ? 'API ready • Index exists' : 'API ready • Index missing');
-      if (!data.index_exists) showError('Knowledge base not built. Run POST /index or `python -m src.ingest`.');
-      return data.index_exists;
-    }
-  } catch (e) {
-    setStatus(false, 'API unreachable');
-    showError('Cannot connect to API. Is the server running at http://127.0.0.1:8000?');
-  }
-  return false;
-}
-
-async function sendQuestion() {
-  const question = inputEl.value.trim();
-  if (!question || isLoading) return;
-
-  // Store user message for potential error recovery
-  lastUserMessage = question;
-
-  addMessage('user', question);
-  inputEl.value = '';
-  inputEl.style.height = 'auto';
-  isLoading = true;
-  sendBtn.disabled = true;
-  sendBtn.innerHTML = '<span class="loading"></span>Sending...';
-  hideError();
-  resetDebugPanel();
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-
-  try {
-    const res = await fetch(API_BASE + '/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question }),
-      signal: controller.signal
-    });
-
-    clearTimeout(timeoutId);
-    const data = await res.json();
-
-    if (res.status === 503) {
-      showError(data.detail || 'Knowledge base not built.');
-      addMessage('bot', 'Knowledge base not built. Please run ingest first.', '', '', false);
-      return;
-    }
-
-    const answer = data.answer || 'No answer received.';
-    const sourceUrl = data.source_url || '';
-    const fetchedDate = data.fetched_date || '';
-
-    addMessage('bot', answer, sourceUrl, fetchedDate, data.debug);
-    updateDebugPanel(data.debug);
-
-  } catch (e) {
-    clearTimeout(timeoutId);
-    if (e.name === 'AbortError') {
-      showError('Request timed out. Please try again.');
-    } else {
-      showError('Request failed: ' + e.message);
-    }
-    // Keep user's last message visible - re-add it
-    addMessage('bot', 'Service temporarily unavailable. Please try again.', '', '', false);
-  } finally {
-    isLoading = false;
-    sendBtn.disabled = false;
-    sendBtn.textContent = 'Send';
-  }
-}
-
-sendBtn.addEventListener('click', sendQuestion);
-inputEl.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendQuestion();
-  }
-});
-inputEl.addEventListener('input', () => {
-  inputEl.style.height = 'auto';
-  inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
-});
-
-renderSampleChips();
-checkHealth();
-setInterval(checkHealth, 30000);
-</script>
+  <script src="/app.js" defer></script>
 </body>
 </html>
