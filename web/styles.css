@@ -1,6 +1,6 @@
 // ==== Tathya UI Styles Part 1 ====
-// Class names: header, home-greeting, start-chat-btn, trust-pill, tile, disclaimer-card, credit-links, bottom-nav, chat-header, fund-pill, bubble-user, answer-card, guard-warm, neutral-card, composer, typing-indicator, toast, focus-ring
-// Colors: --navy #0B2A5B, --sky #0EA5E9, --link-blue #0369A1, --page-bg-mobile #F3F7FC, --page-bg-desktop #EEF3F9, --card #FFFFFF, --border #E3E8EF, --text #0F172A, --text-secondary #475569, --text-muted #64748B, --large-cap #DBEEFD, --flexi-cap #E3E6FB, --elss #D5F5EE, --small-cap #FCEFCB, --balanced #E2E8F0
+// Class names: header, home-greeting, start-chat-btn, trust-pill, tile, disclaimer-card, credit-links, bottom-nav, chat-header, fund-pill, bubble-user, answer-card, guard-warm, neutral-card, composer, typing-indicator, toast, focus-ring, empty-state, empty-circles, empty-circle, empty-heading, topic-chips, topic-chip, composer-card, fund-select, send-pill, chat-header-bar, verified-pill, source-card, source-fact, source-fact-label, source-fact-value, open-source-btn, source-disclaimer
+// Colors: --navy #0B2A5B, --sky #0EA5E9, --link-blue #0369A1, --page-bg-mobile #F3F7FC, --page-bg-desktop #EEF3F9, --card #FFFFFF, --border #E3E8EF, --text #0F172A, --text-secondary #475569, --text-muted #64748B, --large-cap #DBEEFD, --flexi-cap #E3E6FB, --elss #D5F5EE, --small-cap #FCEFCB, --balanced #E2E8F0, --verified #059669, --verified-bg #D1FAE5
 // Fonts: --font-poppins (600/700), --font-dm-sans (400/500/700)
 // Base: box-sizing border-box, margin 0, padding 0, font-family
 
@@ -190,5 +190,163 @@ button { font: inherit; cursor: pointer; }
     justify-content: center;
     font: 600 16px var(--font-poppins);
     color: var(--navy);
+  }
+}
+
+/* ==== EMPTY STATE & CHAT HEADER (mobile + tablet) ==== */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  min-height: 60vh;
+}
+.empty-circles {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  margin-bottom: 32px;
+}
+.empty-circle {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+}
+.empty-circle:nth-child(1) { width: 200px; height: 200px; top: 0; left: 0; border-color: var(--large-cap); }
+.empty-circle:nth-child(2) { width: 140px; height: 140px; top: 30px; left: 30px; border-color: var(--flexi-cap); }
+.empty-circle:nth-child(3) { width: 80px; height: 80px; top: 60px; left: 60px; border-color: var(--elss); }
+.empty-heading {
+  font: 600 24px var(--font-poppins);
+  color: var(--navy);
+  margin-bottom: 8px;
+}
+.empty-subtext {
+  font: 400 14px var(--font-dm-sans);
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+.topic-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 32px;
+  padding: 0 16px;
+}
+.topic-chip {
+  padding: 8px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font: 500 13px var(--font-dm-sans);
+  color: var(--text);
+}
+.composer-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.fund-select {
+  padding: 12px 16px;
+  background: var(--border);
+  border: none;
+  border-radius: 12px;
+  font: 400 14px var(--font-dm-sans);
+  color: var(--text);
+  outline: none;
+  appearance: none;
+}
+.send-pill {
+  width: 100%;
+  padding: 14px 24px;
+  background: var(--navy);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font: 500 14px var(--font-dm-sans);
+}
+.chat-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--card);
+  margin: 0 16px 12px;
+  border-radius: 24px;
+}
+.chat-header-bar .wordmark { font: 700 18px var(--font-poppins); color: var(--navy); }
+.verified-pill {
+  padding: 6px 12px;
+  background: var(--verified-bg);
+  color: var(--verified);
+  border-radius: 999px;
+  font: 500 12px var(--font-dm-sans);
+}
+
+/* ==== DESKTOP ≥ 1024px: 3rd column source card ==== */
+@media (min-width: 1024px) {
+  .app-shell {
+    grid-template-columns: 280px 1fr 320px;
+  }
+  .source-card {
+    background: var(--card);
+    border-left: 1px solid var(--border);
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    height: calc(100vh - 56px);
+    overflow-y: auto;
+  }
+  .source-card h3 {
+    font: 600 12px var(--font-poppins);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .source-facts { display: flex; flex-direction: column; gap: 12px; }
+  .source-fact {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+    background: var(--border);
+    border-radius: 12px;
+  }
+  .source-fact-label {
+    font: 400 11px var(--font-dm-sans);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .source-fact-value {
+    font: 500 13px var(--font-dm-sans);
+    color: var(--text);
+  }
+  .open-source-btn {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font: 500 13px var(--font-dm-sans);
+  }
+  .source-disclaimer {
+    margin-top: auto;
+    padding: 12px;
+    background: #FFF4E5;
+    border: 1px solid #FFE0B2;
+    border-radius: 12px;
+    font: 400 11px var(--font-dm-sans);
+    color: #7C2D12;
   }
 }
