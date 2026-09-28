@@ -173,13 +173,32 @@ def _parse_fund_file(filepath: Path) -> FundResponse:
         if "nil" in text.lower() or "zero" in text.lower():
             exit_load = "Nil"
         else:
-            match = re.search(r"(\d+% if .+?)(?:\.|$)", text, re.IGNORECASE)
-            if match:
-                exit_load = match.group(1).strip()
+            # Check for "in excess of X% of the investment" pattern (Balanced Advantage)
+            excess_match = re.search(r"in excess of\s+(\d+)%\s+of the investment", text, re.IGNORECASE)
+            if excess_match:
+                percent = excess_match.group(1)
+                # Extract the charge percentage and period
+                charge_match = re.search(r"(\d+%)\s+will be charged for redemption within\s+(\d+\s+year)", text, re.IGNORECASE)
+                if charge_match:
+                    charge_pct = charge_match.group(1)
+                    period = charge_match.group(2)
+                    exit_load = f"For units above {percent}% of the investment, {charge_pct} if sold within {period}"
+                else:
+                    # Fallback
+                    match = re.search(r"(\d+% if .+?)(?:\.|$)", text, re.IGNORECASE)
+                    if match:
+                        exit_load = match.group(1).strip()
+                    else:
+                        match = re.search(r"(\d+%.+?)(?:\.|$)", text)
+                        exit_load = match.group(1).strip() if match else text[:100]
             else:
-                # Fallback
-                match = re.search(r"(\d+%.+?)(?:\.|$)", text)
-                exit_load = match.group(1).strip() if match else text[:100]
+                match = re.search(r"(\d+% if .+?)(?:\.|$)", text, re.IGNORECASE)
+                if match:
+                    exit_load = match.group(1).strip()
+                else:
+                    # Fallback
+                    match = re.search(r"(\d+%.+?)(?:\.|$)", text)
+                    exit_load = match.group(1).strip() if match else text[:100]
     
     # Replace "redeemed" with "sold" in exit_load output
     exit_load = exit_load.replace("redeemed", "sold")
@@ -194,7 +213,8 @@ def _parse_fund_file(filepath: Path) -> FundResponse:
     lock_in = None
     if "Lock-in Period" in sections:
         text = sections["Lock-in Period"]
-        match = re.search(r"(\d+\s+years?.+?)(?:\.|$)", text, re.IGNORECASE)
+        # Extract only the duration (e.g., "3 years" or "3 year")
+        match = re.search(r"(\d+\s+years?)", text, re.IGNORECASE)
         if match:
             lock_in = match.group(1).strip()
         else:
