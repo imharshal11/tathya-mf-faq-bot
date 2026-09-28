@@ -79,3 +79,116 @@ button { font: inherit; cursor: pointer; }
   .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--navy); color: #fff; padding: 8px 12px; border-radius: 20px; font: 400 12px var(--font-dm-sans); display: none; z-index: 1000; }
   .focus-ring:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 }
+
+/* ==== TABLET & DESKTOP ≥ 768px ==== */
+@media (min-width: 768px) {
+  body { background: var(--page-bg-desktop); }
+
+  .topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    z-index: 100;
+  }
+  .topbar .wordmark { font: 700 24px var(--font-poppins); color: var(--navy); }
+  .nav-pill {
+    display: flex;
+    gap: 4px;
+    background: var(--border);
+    padding: 4px;
+    border-radius: 999px;
+  }
+  .nav-pill button {
+    padding: 8px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 999px;
+    font: 500 13px var(--font-dm-sans);
+    color: var(--text-secondary);
+  }
+  .nav-pill button.active {
+    background: var(--navy);
+    color: #fff;
+  }
+
+  .app-shell {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: 100vh;
+    padding-top: 56px;
+  }
+
+  .sidebar {
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    height: calc(100vh - 56px);
+    overflow-y: auto;
+  }
+  .sidebar h3 {
+    font: 600 12px var(--font-poppins);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .fund-list { display: flex; flex-direction: column; gap: 8px; }
+  .fund-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font: 500 13px var(--font-dm-sans);
+    color: var(--text);
+  }
+  .fund-list-item:hover { background: var(--border); }
+  .fund-list-item .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .fund-list-item.large-cap .dot { background: var(--large-cap); }
+  .fund-list-item.flexi-cap .dot { background: var(--flexi-cap); }
+  .fund-list-item.elss .dot { background: var(--elss); }
+  .fund-list-item.small-cap .dot { background: var(--small-cap); }
+  .fund-list-item.balanced .dot { background: var(--balanced); }
+
+  .recent-questions { display: flex; flex-direction: column; gap: 8px; }
+  .recent-item {
+    padding: 10px 12px;
+    background: var(--border);
+    border-radius: 12px;
+    font: 400 13px var(--font-dm-sans);
+    color: var(--text-secondary);
+  }
+
+  .credit-card {
+    margin-top: auto;
+    padding: 16px;
+    background: var(--navy);
+    border-radius: 16px;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .credit-card .label { font: 400 11px var(--font-dm-sans); opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; }
+  .credit-card .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--sky);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font: 600 16px var(--font-poppins);
+    color: var(--navy);
+  }
+}
