@@ -1,6 +1,6 @@
 /* ==== Tathya UI Styles Part 1 ====
- * Class names: header, home-greeting, start-chat-btn, trust-pill, tile, disclaimer-card, credit-links, bottom-nav, chat-header, fund-pill, bubble-user, answer-card, guard-warm, neutral-card, composer, typing-indicator, toast, focus-ring, empty-state, empty-circles, empty-circle, empty-heading, topic-chips, topic-chip, composer-card, fund-select, send-pill, chat-header-bar, verified-pill, source-card, source-fact, source-fact-label, source-fact-value, open-source-btn, source-disclaimer, mobile-only, desktop-only, tint-square, fund-info, fund-name, fund-fact, social-btn
- * Colors: --navy #0B2A5B, --sky #0EA5E9, --link-blue #0369A1, --page-bg-mobile #F3F7FC, --page-bg-desktop #EEF3F9, --card #FFFFFF, --border #E3E8EF, --text #0F172A, --text-secondary #475569, --text-muted #64748B, --large-cap #DBEEFD, --flexi-cap #E3E6FB, --elss #D5F5EE, --small-cap #FCEFCB, --balanced #E2E8F0, --verified #059669, --verified-bg #D1FAE5, --trust-bg #E0F2FE, --trust-text #075985, --active-bg #EAF2FF, --credit-bg #F3F7FC
+ * Class names: header, home-greeting, start-chat-btn, trust-pill, tile, disclaimer-card, credit-links, bottom-nav, chat-header, fund-pill, bubble-user, answer-card, guard-warm, neutral-card, composer, typing-indicator, toast, focus-ring, empty-state, empty-circles, empty-circle, empty-heading, topic-chips, topic-chip, composer-card, fund-select, send-pill, chat-header-bar, verified-pill, source-card, source-fact, source-fact-label, source-fact-value, open-source-btn, source-disclaimer, mobile-only, desktop-only, tint-square, fund-info, fund-name, fund-fact, social-btn, bubble-user-content, bubble-actions, action-btn, answer-header, answer-big-figure, answer-unit, answer-body, source-strip, source-link, source-date, source-actions, source-action-btn, refusal-card, refusal-title, refusal-body, refusal-link
+ * Colors: --navy #0B2A5B, --sky #0EA5E9, --link-blue #0369A1, --page-bg-mobile #F3F7FC, --page-bg-desktop #EEF3F9, --card #FFFFFF, --border #E3E8EF, --text #0F172A, --text-secondary #475569, --text-muted #64748B, --large-cap #DBEEFD, --flexi-cap #E3E6FB, --elss #D5F5EE, --small-cap #FCEFCB, --balanced #E2E8F0, --verified #059669, --verified-bg #D1FAE5, --trust-bg #E0F2FE, --trust-text #075985, --active-bg #EAF2FF, --credit-bg #F3F7FC, --refusal-bg #FFF4E5, --refusal-text #7C2D12, --refusal-link #9A3412, --bubble-action-bg #1F4478
  * Fonts: --font-poppins (600/700), --font-dm-sans (400/500/700)
  * Base: box-sizing border-box, margin 0, padding 0, font-family
  */
@@ -36,6 +36,10 @@ button { font: inherit; cursor: pointer; }
   --trust-text: #075985;
   --active-bg: #EAF2FF;
   --credit-bg: #F3F7FC;
+  --refusal-bg: #FFF4E5;
+  --refusal-text: #7C2D12;
+  --refusal-link: #9A3412;
+  --bubble-action-bg: #1F4478;
   --font-poppins: 'Poppins', system-ui, -apple-system, sans-serif;
   --font-dm-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
 }
@@ -56,7 +60,7 @@ button { font: inherit; cursor: pointer; }
 /* MOBILE < 768px */
 @media (max-width: 767px) {
   .view { display: none; }
-  .view.is-active { display: flex; flex-direction: column; min-height: 100dvh; padding-bottom: env(safe-area-inset-bottom); }
+  .view.is-active { display: flex; flex-direction: column; min-height: 100dvh; padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
 
   button, a { border: none; background: none; font: inherit; cursor: pointer; }
 
@@ -111,41 +115,67 @@ button { font: inherit; cursor: pointer; }
   .credit-links a { width: 36px; height: 36px; border-radius: 50%; background: var(--card); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; }
   .credit-links a .icon { width: 16px; height: 16px; color: var(--text-secondary); }
 
-  .bottom-nav { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; background: var(--card); border-radius: 999px; box-shadow: 0 8px 24px rgba(11,42,91,0.12); z-index: 100; margin-bottom: env(safe-area-inset-bottom); }
+  .bottom-nav { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; background: var(--card); border-radius: 999px; box-shadow: 0 8px 24px rgba(11,42,91,0.12); z-index: 200; }
   .bottom-nav .nav-item { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font: 500 12px var(--font-dm-sans); }
   .bottom-nav .nav-item .icon { width: 20px; height: 20px; stroke-width: 2; }
   .bottom-nav .nav-item.active { background: var(--navy); color: #fff; }
   .bottom-nav .nav-item.active .icon { color: #fff; }
   .bottom-nav .nav-item:not(.active) { background: #F1F5F9; color: var(--text); }
 
-  .chat-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--card); margin: 0 16px 8px; border-radius: 24px; }
-  .chat-header .back { width: 44px; height: 44px; border-radius: 50%; background: var(--border); display: flex; align-items: center; justify-content: center; }
-  .chat-header .back .icon { width: 20px; height: 20px; color: var(--text); }
-  .chat-header .logo-icon { width: 28px; height: 28px; border-radius: 8px; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-family: var(--font-poppins); font-weight: 700; font-size: 17px; line-height: 1; position: relative; }
-  .chat-header .logo-dot { position: absolute; right: 5px; top: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--sky); }
-  .chat-header .wordmark { font: 700 20px var(--font-poppins); color: var(--navy); letter-spacing: -0.5px; }
+.chat-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 10px 16px; }
+  .chat-header .back { width: 44px; height: 44px; border-radius: 50%; background: var(--card); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; }
+  .chat-header .back .icon { width: 20px; height: 20px; color: var(--text); stroke-width: 2; }
+  .chat-header .wordmark { font: 700 20px var(--font-poppins); letter-spacing: -0.4px; line-height: 1; }
   .chat-header .wordmark .n { color: var(--navy); }
   .chat-header .wordmark .s { color: var(--sky); }
-  .chat-header .new-chat { padding: 8px 14px; background: var(--navy); color: #fff; border-radius: 999px; font: 500 13px var(--font-dm-sans); }
+  .chat-header .new-chat { width: 44px; height: 44px; border-radius: 50%; background: var(--card); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; }
+  .chat-header .new-chat .icon { width: 19px; height: 19px; color: var(--text); stroke-width: 2; }
 
-  .fund-pills { overflow-x: auto; padding: 0 16px 8px; display: flex; gap: 8px; scrollbar-width: none; -ms-scrollbar-width: none; }
-  .fund-pills::-webkit-scrollbar { display: none; }
-  .fund-pill { height: 36px; padding: 0 14px; background: var(--border); color: var(--text); border-radius: 999px; font: 500 13px var(--font-dm-sans); white-space: nowrap; display: inline-flex; align-items: center; }
-  .fund-pill.large-cap { background: var(--large-cap); }
-  .fund-pill.flexi-cap { background: var(--flexi-cap); }
-  .fund-pill.elss { background: var(--elss); }
-  .fund-pill.small-cap { background: var(--small-cap); }
-  .fund-pill.balanced { background: var(--balanced); }
+  .fund-pills { padding: 2px 16px 8px; }
+  .fund-pills > div { display: flex; gap: 4px; padding: 4px; background: var(--card); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+  .fund-pill { flex-shrink: 0; height: 36px; padding: 0 14px; border-radius: 999px; border: none; font: 500 13px var(--font-dm-sans); cursor: pointer; }
   .fund-pill.active { background: var(--navy); color: #fff; }
+  .fund-pill:not(.active) { background: transparent; color: #334155; }
 
-  .messages { flex: 1; overflow-y: auto; padding: 0 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+  .messages { flex: 1; overflow-y: auto; padding: 6px 16px 0 16px; display: flex; flex-direction: column; gap: 12px; }
 
-  .composer { position: fixed; bottom: 0; left: 0; right: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--page-bg-mobile) 0%, transparent 100%); z-index: 50; }
-  .composer form { display: flex; gap: 8px; background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 4px 8px 4px 4px; }
-  .composer input { flex: 1; padding: 12px 16px; border: none; border-radius: 999px; font: 400 15px var(--font-dm-sans); outline: none; background: transparent; }
-  .composer button[type="submit"] { width: 48px; height: 48px; border-radius: 50%; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; }
-  .composer button[type="submit"] .icon { width: 20px; height: 20px; }
-  .composer > p { margin-top: 60px; padding: 0 16px; font: 400 11px var(--font-dm-sans); color: var(--text-muted); text-align: center; }
+  .bubble-user { align-self: flex-end; max-width: 84%; background: var(--navy); color: #fff; border-radius: 22px 22px 6px 22px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .bubble-user-content { font-size: 15px; line-height: 1.4; }
+  .bubble-actions { display: flex; gap: 6px; }
+  .action-btn { height: 28px; padding: 0 10px; border-radius: 999px; background: var(--bubble-action-bg); color: #fff; border: none; font: 500 12px var(--font-dm-sans); cursor: pointer; }
+
+  .answer-card { display: flex; gap: 8px; align-items: flex-start; }
+  .answer-card .logo-icon { width: 30px; height: 30px; border-radius: 9px; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-family: var(--font-poppins); font-weight: 700; font-size: 18px; line-height: 1; position: relative; flex-shrink: 0; }
+  .answer-card .logo-dot { position: absolute; right: 5px; top: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--sky); }
+  .answer-card article { flex-grow: 1; background: var(--card); border-radius: 6px 22px 22px 22px; padding: 16px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 2px 10px rgba(11,42,91,0.05); }
+  .answer-header { align-self: flex-start; font-size: 12px; font-weight: 500; color: var(--navy); background: var(--large-cap); border-radius: 999px; padding: 5px 10px; }
+  .answer-big-figure { display: flex; align-items: baseline; gap: 8px; }
+  .answer-big-figure .value { font: 600 36px var(--font-poppins); line-height: 1; color: var(--navy); }
+  .answer-big-figure .unit { font-size: 14px; color: var(--text-secondary); }
+  .answer-body { margin: 0; font-size: 15px; line-height: 1.5; color: #1E293B; }
+  .source-strip { display: flex; align-items: center; justify-content: space-between; background: #F6F8FB; border-radius: 14px; padding: 8px 10px; }
+  .source-link { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--link-blue); text-decoration: none; }
+  .source-link .icon { width: 14px; height: 14px; color: var(--link-blue); stroke-width: 2; }
+  .source-date { font-size: 12px; color: var(--text-muted); }
+  .source-actions { display: flex; gap: 14px; }
+  .source-action-btn { display: flex; align-items: center; gap: 5px; background: transparent; border: none; padding: 4px 0; font: 400 13px var(--font-dm-sans); color: var(--text-secondary); cursor: pointer; }
+  .source-action-btn .icon { width: 15px; height: 15px; color: var(--text-secondary); stroke-width: 1.8; }
+
+  .refusal-card { display: flex; gap: 8px; align-items: flex-start; }
+  .refusal-card .logo-icon { width: 30px; height: 30px; border-radius: 9px; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-family: var(--font-poppins); font-weight: 700; font-size: 18px; line-height: 1; position: relative; flex-shrink: 0; }
+  .refusal-card .logo-dot { position: absolute; right: 5px; top: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--sky); }
+  .refusal-card article { flex-grow: 1; background: var(--refusal-bg); border-radius: 6px 22px 22px 22px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .refusal-title { font-size: 15px; font-weight: 700; color: var(--refusal-text); }
+  .refusal-body { margin: 0; font-size: 14px; line-height: 1.5; color: var(--refusal-text); }
+  .refusal-link { font-size: 13px; font-weight: 500; color: var(--refusal-link); text-decoration: underline; }
+
+  .composer { position: fixed; bottom: 0; left: 0; right: 0; padding: 10px 16px calc(18px + env(safe-area-inset-bottom)); background: transparent; z-index: 50; }
+  .composer form { display: flex; align-items: center; gap: 8px; background: var(--card); border-radius: 999px; padding: 6px 6px 6px 20px; box-shadow: 0 8px 24px rgba(11,42,91,0.10); }
+  .composer label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .composer input { flex-grow: 1; border: none; outline: none; background: transparent; font: 400 15px var(--font-dm-sans); color: var(--text); min-width: 0; }
+  .composer button[type="submit"] { width: 48px; height: 48px; border-radius: 50%; background: var(--navy); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; flex-shrink: 0; }
+  .composer button[type="submit"] .icon { width: 20px; height: 20px; color: #fff; stroke-width: 2; }
+  .composer > p { margin: 8px 0 0 0; text-align: center; font-size: 11px; line-height: 1.4; color: var(--text-muted); }
 
   .focus-ring:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 }
