@@ -34,7 +34,6 @@
     detectViewport();
     bindEvents();
     renderHome();
-    loadRecentQuestions();
   }
 
   function detectViewport() {
@@ -76,24 +75,10 @@
     state.activeFund = fundId;
   }
 
-  function loadRecentQuestions() {
-    // Load from sessionStorage
-    const stored = sessionStorage.getItem('tathya_recent');
-    if (stored) {
-      state.recentQuestions = JSON.parse(stored);
-      renderRecentQuestions();
-    }
-  }
-
-  function saveRecentQuestions() {
-    sessionStorage.setItem('tathya_recent', JSON.stringify(state.recentQuestions));
-  }
-
   function addRecentQuestion(question) {
     if (!question.trim()) return;
     state.recentQuestions.unshift(question);
     if (state.recentQuestions.length > 10) state.recentQuestions.pop();
-    saveRecentQuestions();
     renderRecentQuestions();
   }
 
