@@ -1,4 +1,4 @@
-question,expected_type,must_contain
+question,expected_type,must_contain,scheme
 "What is the expense ratio of HDFC Large Cap Fund?",answer,1.03%
 "Who manages HDFC Balanced Advantage Fund?",answer,Anil Bamboli
 "What is the lock-in of HDFC ELSS Tax Saver Fund?",answer,3 years
@@ -62,4 +62,19 @@ question,expected_type,must_contain
 "hello",greeting,Hello! I can answer factual questions
 "thanks!",thanks,You're welcome
 "Which is better, HDFC Large Cap or HDFC Flexi Cap?",advisory,cannot provide investment advice
-"What is the NAV of HDFC Small Cap Fund today?",live_data,live data such as today's NAV
+"What is the NAV of HDFC Small Cap Fund today?",live_data,live data such as today's NAV,
+"What is the exit load?",answer,1% if sold within 1 year,"HDFC Large Cap Fund - Direct Growth"
+"What is the minimum SIP?",answer,₹100,"HDFC Large Cap Fund - Direct Growth"
+"Who manages it?",answer,Rahul Baijal,"HDFC Large Cap Fund - Direct Growth"
+"What is the exit load?",answer,1% if sold within 1 year,"HDFC Flexi Cap Fund (formerly HDFC Equity Fund) - Direct Growth"
+"What is the minimum SIP?",answer,₹100,"HDFC Flexi Cap Fund (formerly HDFC Equity Fund) - Direct Growth"
+"Who manages it?",answer,Dhruv Muchhal,"HDFC Flexi Cap Fund (formerly HDFC Equity Fund) - Direct Growth"
+"What is the exit load?",answer,Nil,"HDFC ELSS Tax Saver Fund - Direct Plan Growth"
+"What is the minimum SIP?",answer,₹500,"HDFC ELSS Tax Saver Fund - Direct Plan Growth"
+"Who manages it?",answer,Amar Kalkundrikar,"HDFC ELSS Tax Saver Fund - Direct Plan Growth"
+"What is the exit load?",answer,1% if sold within 1 year,"HDFC Small Cap Fund - Direct Growth"
+"What is the minimum SIP?",answer,₹100,"HDFC Small Cap Fund - Direct Growth"
+"Who manages it?",answer,Dhruv Muchhal,"HDFC Small Cap Fund - Direct Growth"
+"What is the exit load?",answer,1% if sold within 1 year,"HDFC Balanced Advantage Fund - Direct Growth"
+"What is the minimum SIP?",answer,₹100,"HDFC Balanced Advantage Fund - Direct Growth"
+"Who manages it?",answer,Anil Bamboli,"HDFC Balanced Advantage Fund - Direct Growth"

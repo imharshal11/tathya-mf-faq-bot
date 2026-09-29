@@ -27,9 +27,13 @@ def run_eval(csv_path: str):
         question = row["question"]
         expected_type = row["expected_type"]
         must_contain = row["must_contain"] if row["must_contain"] else ""
+        scheme = row.get("scheme", "") if "scheme" in row else ""
 
         try:
-            resp = client.post("/chat", json={"question": question})
+            payload = {"question": question}
+            if scheme:
+                payload["scheme"] = scheme
+            resp = client.post("/chat", json=payload)
             data = resp.json()
         except Exception as e:
             failed.append((i, question, f"Request error: {e}", ""))
@@ -61,7 +65,8 @@ def run_eval(csv_path: str):
             status = "FAIL"
             failed.append((i, question, f"Expected type={expected_type}, got={actual_type}; must_contain='{must_contain}'", answer[:200]))
 
-        print(f"{i:3d} [{status}] {question[:80]}...")
+        scheme_str = f" [scheme={scheme}]" if scheme else ""
+        print(f"{i:3d} [{status}]{scheme_str} {question[:80]}...")
         if status == "FAIL":
             print(f"      Expected: type={expected_type}, contains='{must_contain}'")
             # Handle unicode for printing

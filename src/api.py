@@ -339,6 +339,15 @@ def post_chat(req: ChatRequest) -> ChatResponse:
             },
         )
 
+    def _short_name(scheme_name: str) -> str:
+        """Extract short fund name from scheme_name (remove plan suffix and 'formerly')."""
+        return " ".join(
+            scheme_name.replace(" - Direct Growth", "")
+            .replace(" - Direct Plan Growth", "")
+            .replace("(formerly HDFC Equity Fund)", "")
+            .split()
+        )
+
     # Determine scheme filter: question's fund wins over explicit scheme; invalid scheme is ignored
     explicit_scheme = req.scheme
     auto_scheme = detect_scheme(req.question)
@@ -348,6 +357,12 @@ def post_chat(req: ChatRequest) -> ChatResponse:
 
     # Question's fund wins over explicit scheme
     scheme_name = auto_scheme or valid_explicit_scheme
+
+    # If explicit scheme was provided but question doesn't name a fund,
+    # append short fund name to query for better retrieval (keep original for Groq)
+    retrieval_question = req.question
+    if valid_explicit_scheme and not auto_scheme:
+        retrieval_question = f"{req.question} {_short_name(valid_explicit_scheme)}"
 
     # Check for all-funds query (comparison or "all funds")
     if is_all_funds_query(req.question):
@@ -452,7 +467,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
             )
 
     # Retrieve
-    chunks, scores = retrieve_chunks(req.question, scheme_name=scheme_name)
+    chunks, scores = retrieve_chunks(retrieval_question, scheme_name=scheme_name)
     threshold_passed = len(chunks) > 0
 
     if not threshold_passed:
