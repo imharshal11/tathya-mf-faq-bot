@@ -101,32 +101,12 @@
   }
 
   async function fetchFundFacts(fundId) {
-    const schemeMap = {
-      'large-cap': 'HDFC Large Cap Fund - Direct Growth',
-      'flexi-cap': 'HDFC Flexi Cap Fund (formerly HDFC Equity Fund) - Direct Growth',
-      'elss': 'HDFC ELSS Tax Saver Fund - Direct Plan Growth',
-      'small-cap': 'HDFC Small Cap Fund - Direct Growth',
-      'balanced': 'HDFC Balanced Advantage Fund - Direct Growth'
-    };
-    const scheme = schemeMap[fundId];
-    if (!scheme) return;
-
     try {
-      const response = await fetch('/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: 'fund facts', scheme })
-      });
+      const response = await fetch(`/funds/${fundId}`);
+      if (!response.ok) return;
       const data = await response.json();
       if (data.facts) {
-        const fundNames = {
-          'large-cap': 'HDFC Large Cap Fund',
-          'flexi-cap': 'HDFC Flexi Cap Fund',
-          'elss': 'HDFC ELSS Tax Saver Fund',
-          'small-cap': 'HDFC Small Cap Fund',
-          'balanced': 'HDFC Balanced Advantage Fund'
-        };
-        const fundDisplay = fundNames[fundId];
+        const fundDisplay = data.name || fundId;
         const fetchDate = data.fetched_date || '27 Sep 2026';
         populateSourcesPanel(data, fundDisplay, fetchDate);
       }
@@ -554,39 +534,6 @@
 
       // Format date as "27 Sep 2026"
       const fetchDate = data.fetched_date || '27 Sep 2026';
-
-      // Step 4: Fund context logic - if question names no fund and no active fund, show fund selection prompt
-      const knownFields = ['expense ratio', 'exit load', 'sip', 'lock-in', 'riskometer', 'benchmark', 'manager', 'fund size'];
-      const questionLikelyNamesFund = knownFields.some(field => data.question?.toLowerCase().includes(field));
-      const noFundContext = !data.fund && !state.activeFund && questionLikelyNamesFund;
-
-      if (noFundContext) {
-        // Show fund selection prompt in info-card
-        const articleHtml = `
-          <article class="info-card" role="status">
-            <p class="answer-text">Which fund do you mean? Large Cap, Flexi Cap, ELSS Tax Saver, Small Cap or Balanced Advantage.</p>
-          </article>
-        `;
-        const typingEl = els.messages.querySelector('.typing-indicator');
-        if (typingEl) {
-          const msgBotEl = typingEl.closest('.msg-bot');
-          if (msgBotEl) {
-            msgBotEl.innerHTML = `
-              <div class="avatar">t<span class="dot" aria-hidden="true"></span></div>
-              ${articleHtml}
-            `;
-          } else {
-            typingEl.outerHTML = `
-              <div class="msg-bot">
-                <div class="avatar">t<span class="dot" aria-hidden="true"></span></div>
-                ${articleHtml}
-              </div>
-            `;
-          }
-        }
-        els.messages.scrollTop = els.messages.scrollHeight;
-        return;
-      }
 
       // Build answer article
       let articleHtml = '';
