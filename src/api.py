@@ -18,7 +18,7 @@ from src.ingest import load_env, rebuild_index
 from src.retrieve import retrieve_chunks, retrieve_all_funds_fact, is_all_funds_query, get_fact_heading, ALL_FUNDS, detect_scheme
 from src.generate import generate_answer, extract_answer
 from src.guardrails import check_guardrails, GuardrailResult
-from src.common import get_collection, COLLECTION_NAME, CORPUS_PATH
+from src.common import get_collection, COLLECTION_NAME, CORPUS_PATH, TOP_K, SCORE_THRESHOLD
 
 
 def format_date(date_str: str) -> str:
@@ -31,8 +31,6 @@ def format_date(date_str: str) -> str:
 
 
 # Safe defaults (env vars override)
-TOP_K = int(os.getenv("TOP_K", "6"))
-SCORE_THRESHOLD = float(os.getenv("SCORE_THRESHOLD", "0.40"))
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
 
 
@@ -358,11 +356,11 @@ def post_chat(req: ChatRequest) -> ChatResponse:
     # Question's fund wins over explicit scheme
     scheme_name = auto_scheme or valid_explicit_scheme
 
-    # If explicit scheme was provided but question doesn't name a fund,
-    # append short fund name to query for better retrieval (keep original for Groq)
+    # Augment retrieval query with fund name for better matching
+    # (both explicit and auto-detected schemes)
     retrieval_question = req.question
-    if valid_explicit_scheme and not auto_scheme:
-        retrieval_question = f"{req.question} {_short_name(valid_explicit_scheme)}"
+    if scheme_name:
+        retrieval_question = f"{req.question} {_short_name(scheme_name)}"
 
     # Check for all-funds query (comparison or "all funds")
     if is_all_funds_query(req.question):

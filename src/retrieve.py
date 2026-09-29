@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import re
 
-from src.common import get_collection
+from src.common import get_collection, TOP_K, SCORE_THRESHOLD
 from src.ingest import load_env
 
 
@@ -123,8 +123,8 @@ def get_fact_heading(query: str) -> str | None:
 def retrieve_chunks(query: str, top_k: int | None = None, scheme_name: str | None = None) -> tuple[list[dict], list[float]]:
     """Return (chunks, scores) for the query. Scores are similarities in [0,1]."""
     load_env()
-    k = top_k or int(os.getenv("TOP_K", "6"))
-    threshold = float(os.getenv("SCORE_THRESHOLD", "0.40"))
+    k = top_k or TOP_K
+    threshold = SCORE_THRESHOLD
 
     try:
         coll = get_collection()
@@ -182,7 +182,7 @@ def retrieve_chunks(query: str, top_k: int | None = None, scheme_name: str | Non
 def retrieve_all_funds_fact(query: str) -> tuple[list[dict], list[float]]:
     """Retrieve a specific fact (e.g., expense ratio) for all 5 funds."""
     load_env()
-    threshold = float(os.getenv("SCORE_THRESHOLD", "0.40"))
+    threshold = SCORE_THRESHOLD
 
     try:
         coll = get_collection()

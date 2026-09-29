@@ -19,6 +19,8 @@ CORPUS_PATH = os.getenv("CORPUS_PATH", "corpus")
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "mf_faq")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b").strip()
+TOP_K = int(os.getenv("TOP_K", "6"))
+SCORE_THRESHOLD = float(os.getenv("SCORE_THRESHOLD", "0.55"))
 
 
 _embedding_fn: ONNXMiniLM_L6_V2 | None = None
