@@ -56,6 +56,32 @@ ADVISORY_PHRASES = [
     r"\bis\b.*\bsafe\b",
 ]
 
+ADVISORY_KEYWORDS = [
+    "shall i buy",
+    "shall i invest",
+    "shall invest",
+    "can i buy",
+    "can i invest",
+    "should i buy",
+    "should i invest",
+    "is it worth",
+    "worth buying",
+    "good time to invest",
+    "good time to buy",
+    "buy or not",
+    "invest or not",
+    "should i put",
+    "can i put money",
+]
+
+ADVISORY_EXCEPTION_KEYWORDS = [
+    "how",
+    "sip",
+    "lump sum",
+    "minimum",
+    "via",
+]
+
 
 RETURNS_PHRASES = [
     r"\breturns\b",
@@ -118,6 +144,13 @@ GREETING_PATTERNS = [
     r"^help\b",
 ]
 
+IDENTITY_PATTERNS = [
+    r"who are you",
+    r"what are you",
+    r"what is tathya",
+    r"how do you work",
+]
+
 THANKS_PATTERNS = [
     r"^thanks?\b",
     r"^thank\s+you\b",
@@ -147,6 +180,54 @@ def check_advisory(text: str) -> bool:
     for phrase in ADVISORY_PHRASES:
         if re.search(phrase, text_lower):
             return True
+    return False
+
+
+def check_advisory_keywords(text: str) -> bool:
+    """Check for advisory keywords (whole-word, case-insensitive).
+    Exception: if question also contains 'how', 'sip', 'lump sum', 'minimum', or 'via', do NOT trigger."""
+    text_lower = text.lower()
+    
+    # Check for exception keywords first
+    for exc in ADVISORY_EXCEPTION_KEYWORDS:
+        if re.search(rf"\b{re.escape(exc)}\b", text_lower):
+            return False
+    
+    # Check advisory keywords
+    for keyword in ADVISORY_KEYWORDS:
+        # Whole-word match with word boundaries
+        if re.search(rf"\b{re.escape(keyword)}\b", text_lower):
+            return True
+    
+    # Also check with "it" and "this fund"
+    it_patterns = [
+        r"\bcan i buy it\b",
+        r"\bcan i invest in it\b",
+        r"\bshould i buy it\b",
+        r"\bshould i invest in it\b",
+        r"\bshall i buy it\b",
+        r"\bshall i invest in it\b",
+        r"\bis it worth buying it\b",
+        r"\bworth buying it\b",
+        r"\bbuy or not it\b",
+        r"\binvest or not it\b",
+        r"\bcan i put money in it\b",
+        r"\bshould i put money in it\b",
+        r"\bcan i buy this fund\b",
+        r"\bcan i invest in this fund\b",
+        r"\bshould i buy this fund\b",
+        r"\bshould i invest in this fund\b",
+        r"\bshall i buy this fund\b",
+        r"\bshall i invest in this fund\b",
+        r"\bis this fund worth buying\b",
+        r"\bworth buying this fund\b",
+        r"\bbuy or not this fund\b",
+        r"\binvest or not this fund\b",
+    ]
+    for pattern in it_patterns:
+        if re.search(pattern, text_lower):
+            return True
+    
     return False
 
 
@@ -213,8 +294,18 @@ def check_other_funds(text: str) -> bool:
     return False
 
 
+def check_identity(text: str) -> bool:
+    """Check for identity/help questions. Checked BEFORE retrieval and before any AI check."""
+    text_lower = text.lower().strip()
+    for pattern in IDENTITY_PATTERNS:
+        if re.search(pattern, text_lower):
+            return True
+    return False
+
+
 def check_greeting(text: str) -> bool:
     """Check for greetings or help requests. Only trigger on short messages (~5 words or fewer) that don't name a fund or ask a fund fact."""
+    import re
     text_lower = text.lower().strip()
     words = text_lower.split()
     
@@ -245,6 +336,7 @@ def check_greeting(text: str) -> bool:
 
 def check_thanks(text: str) -> bool:
     """Check for thank-you messages. Only trigger on short messages (~5 words or fewer) that don't name a fund or ask a fund fact."""
+    import re
     text_lower = text.lower().strip()
     words = text_lower.split()
     
@@ -294,7 +386,17 @@ def check_clarify_needed(text: str, scheme_name: str | None) -> bool:
 
 def check_guardrails(question: str, explicit_scheme: str | None = None) -> GuardrailResult:
     """Run all guardrails in order. Returns GuardrailResult."""
-    # 1. PII check
+    # 1. Identity/Help check (BEFORE retrieval and before any AI check)
+    if check_identity(question):
+        return GuardrailResult(
+            triggered=True,
+            type="greeting",
+            message="Hello! I can answer factual questions about 5 HDFC Mutual Fund schemes (Direct Plan - Growth). For example: 'What is the expense ratio of HDFC Large Cap Fund?' or 'What is the lock-in period of HDFC ELSS Tax Saver Fund?'",
+            source_url="",
+            fetched_date="",
+        )
+
+    # 2. PII check
     pii_found, pii_type = check_pii(question)
     if pii_found:
         return GuardrailResult(
@@ -305,7 +407,17 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
             fetched_date=TODAY_DATE,
         )
 
-    # 2. Advisory check
+    # 3. Advisory keywords check (new specific keywords)
+    if check_advisory_keywords(question):
+        return GuardrailResult(
+            triggered=True,
+            type="advisory",
+            message="I cannot provide investment advice. For investor education, please visit AMFI's Mutual Funds Sahi Hai.",
+            source_url=AMFI_URL,
+            fetched_date=TODAY_DATE,
+        )
+
+    # 4. Advisory phrases check
     if check_advisory(question):
         return GuardrailResult(
             triggered=True,
@@ -315,7 +427,7 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
             fetched_date=TODAY_DATE,
         )
 
-    # 3. Returns/performance check
+    # 5. Returns/performance check
     if check_returns(question):
         return GuardrailResult(
             triggered=True,
@@ -325,7 +437,7 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
             fetched_date=TODAY_DATE,
         )
 
-    # 4. Live data check
+    # 6. Live data check
     if check_live_data(question):
         # Try to detect scheme for link (use explicit if provided)
         from src.retrieve import detect_scheme
@@ -349,7 +461,7 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
             fetched_date=TODAY_DATE,
         )
 
-    # 5. Plan type check
+    # 7. Plan type check
     if check_plan_type(question):
         return GuardrailResult(
             triggered=True,
@@ -359,7 +471,7 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
             fetched_date="",
         )
 
-    # 6. Other funds/AMCs check
+    # 8. Other funds/AMCs check
     if check_other_funds(question):
         return GuardrailResult(
             triggered=True,
@@ -369,7 +481,7 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
             fetched_date="",
         )
 
-    # 7. Greeting check
+    # 9. Greeting check
     if check_greeting(question):
         return GuardrailResult(
             triggered=True,
@@ -379,7 +491,7 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
             fetched_date="",
         )
 
-    # 8. Thanks check
+    # 10. Thanks check
     if check_thanks(question):
         return GuardrailResult(
             triggered=True,
@@ -389,7 +501,7 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
             fetched_date="",
         )
 
-    # 9. Clarify check (no scheme named but asks scheme-level fact)
+    # 11. Clarify check (no scheme named but asks scheme-level fact)
     from src.retrieve import detect_scheme
     scheme_name = explicit_scheme or detect_scheme(question)
     if check_clarify_needed(question, scheme_name):

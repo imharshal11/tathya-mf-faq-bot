@@ -27,6 +27,7 @@ def run_eval(csv_path: str):
         question = row["question"]
         expected_type = row["expected_type"]
         must_contain = row["must_contain"] if row["must_contain"] else ""
+        must_not_contain = row["must_not_contain"] if row.get("must_not_contain") else ""
         scheme = row.get("scheme", "") if "scheme" in row else ""
 
         try:
@@ -57,18 +58,28 @@ def run_eval(csv_path: str):
         content_match = True
         if must_contain:
             content_match = must_contain.lower() in answer.lower()
+        not_contain_match = True
+        if must_not_contain:
+            not_contain_match = must_not_contain.lower() not in answer.lower()
 
-        if type_match and content_match:
+        if type_match and content_match and not_contain_match:
             passed += 1
             status = "PASS"
         else:
             status = "FAIL"
-            failed.append((i, question, f"Expected type={expected_type}, got={actual_type}; must_contain='{must_contain}'", answer[:200]))
+            reason_parts = []
+            if not type_match:
+                reason_parts.append(f"Expected type={expected_type}, got={actual_type}")
+            if must_contain and not content_match:
+                reason_parts.append(f"must_contain='{must_contain}'")
+            if must_not_contain and not not_contain_match:
+                reason_parts.append(f"must_not_contain='{must_not_contain}'")
+            failed.append((i, question, "; ".join(reason_parts), answer[:200]))
 
         scheme_str = f" [scheme={scheme}]" if scheme else ""
         print(f"{i:3d} [{status}]{scheme_str} {question[:80]}...")
         if status == "FAIL":
-            print(f"      Expected: type={expected_type}, contains='{must_contain}'")
+            print(f"      Expected: type={expected_type}, contains='{must_contain}', not_contains='{must_not_contain}'")
             # Handle unicode for printing
             safe_answer = answer[:150].encode('ascii', 'replace').decode('ascii')
             print(f"      Got:      type={actual_type}, answer='{safe_answer}'")

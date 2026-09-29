@@ -356,11 +356,20 @@ def post_chat(req: ChatRequest) -> ChatResponse:
     # Question's fund wins over explicit scheme
     scheme_name = auto_scheme or valid_explicit_scheme
 
-    # Augment retrieval query with fund name for better matching
-    # (both explicit and auto-detected schemes)
+    # Augment retrieval query with fund name ONLY when question contains a fund-fact keyword
     retrieval_question = req.question
     if scheme_name:
-        retrieval_question = f"{req.question} {_short_name(scheme_name)}"
+        import re
+        fund_fact_keywords = [
+            "expense ratio", "expense", "ter", "exit load", "sip", "minimum", "lump sum",
+            "aum", "fund size", "manager", "managers", "manages", "who runs",
+            "risk", "riskometer", "benchmark", "index", "lock-in", "lockin", "lock in",
+            "nav", "objective", "category", "fund house", "stamp duty", "tax", "returns"
+        ]
+        text_lower = req.question.lower()
+        has_fund_fact_keyword = any(re.search(rf"\b{re.escape(kw)}\b", text_lower) for kw in fund_fact_keywords)
+        if has_fund_fact_keyword:
+            retrieval_question = f"{req.question} {_short_name(scheme_name)}"
 
     # Check for all-funds query (comparison or "all funds")
     if is_all_funds_query(req.question):
@@ -487,6 +496,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
     except Exception as e:
         # Groq call failed - use extractive fallback
         fallback_answer = extract_answer(chunks[0]["text"], req.question)
+        fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
         top_chunk = chunks[0]
         return ChatResponse(
             answer=fallback_answer,
@@ -506,6 +516,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
         top_score = scores[0] if scores else 0
         if top_score >= 0.70:
             fallback_answer = extract_answer(chunks[0]["text"], req.question)
+            fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
             top_chunk = chunks[0]
             return ChatResponse(
                 answer=fallback_answer,
@@ -532,6 +543,8 @@ def post_chat(req: ChatRequest) -> ChatResponse:
         )
 
     # Groq returned an answer - attach metadata from top chunk
+    # Post-process: replace "redeemed" with "sold" for exit load answers
+    answer = answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
     top_chunk = chunks[0]
     return ChatResponse(
         answer=answer,
