@@ -93,6 +93,46 @@
       btn.classList.toggle('active', btn.dataset.fund === fundId);
     });
     state.activeFund = fundId;
+
+    // If in chat mode, fetch and populate sources panel for the selected fund
+    if (state.isChat) {
+      fetchFundFacts(fundId);
+    }
+  }
+
+  async function fetchFundFacts(fundId) {
+    const schemeMap = {
+      'large-cap': 'HDFC Large Cap Fund - Direct Growth',
+      'flexi-cap': 'HDFC Flexi Cap Fund (formerly HDFC Equity Fund) - Direct Growth',
+      'elss': 'HDFC ELSS Tax Saver Fund - Direct Plan Growth',
+      'small-cap': 'HDFC Small Cap Fund - Direct Growth',
+      'balanced': 'HDFC Balanced Advantage Fund - Direct Growth'
+    };
+    const scheme = schemeMap[fundId];
+    if (!scheme) return;
+
+    try {
+      const response = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: 'fund facts', scheme })
+      });
+      const data = await response.json();
+      if (data.facts) {
+        const fundNames = {
+          'large-cap': 'HDFC Large Cap Fund',
+          'flexi-cap': 'HDFC Flexi Cap Fund',
+          'elss': 'HDFC ELSS Tax Saver Fund',
+          'small-cap': 'HDFC Small Cap Fund',
+          'balanced': 'HDFC Balanced Advantage Fund'
+        };
+        const fundDisplay = fundNames[fundId];
+        const fetchDate = data.fetched_date || '27 Sep 2026';
+        populateSourcesPanel(data, fundDisplay, fetchDate);
+      }
+    } catch (e) {
+      console.error('Failed to fetch fund facts:', e);
+    }
   }
 
   function addRecentQuestion(question) {
@@ -314,12 +354,18 @@
     const question = els.textarea?.value?.trim();
     if (!question) return;
 
-    const fundSelectValue = els.fundSelect?.value || 'all';
+    // Determine fund from dropdown or active fund
+    let fundSelectValue = 'all';
+    if (state.isChat) {
+      fundSelectValue = state.activeFund || 'all';
+    } else {
+      fundSelectValue = els.fundSelect?.value || 'all';
+    }
     const scheme = fundSelectValue === 'all' ? null : FUND_SCHEME_MAP[fundSelectValue];
-    sendQuestion(question, scheme);
+    sendQuestion(question, scheme, fundSelectValue);
   }
 
-  async function sendQuestion(question, fund) {
+  async function sendQuestion(question, fund, fundId) {
     // Add to recent questions
     addRecentQuestion(question);
 
@@ -345,7 +391,7 @@
     messagesInner.insertAdjacentHTML('beforeend', `
       <div class="msg-user">${escapeHtml(question)}</div>
       <div class="msg-bot">
-        <div class="avatar">t<span class="logo-dot" aria-hidden="true"></span></div>
+        <div class="avatar">t<span class="dot" aria-hidden="true"></span></div>
         <article class="typing-indicator">Tathya is typing…</article>
       </div>
     `);
@@ -353,14 +399,21 @@
     // Auto-scroll to bottom
     els.messages.scrollTop = els.messages.scrollHeight;
 
+    // Determine fund for API call: use active fund if no fund specified in question
+    // Step 4: If question names no fund, use active fund; else reply with fund selection prompt
+    let apiScheme = fund;
+    let apiFundId = fundId || state.activeFund;
+
     // Fetch answer
     try {
       const response = await fetch('/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, scheme: fund })
+        body: JSON.stringify({ question, scheme: apiScheme })
       });
       const data = await response.json();
+      // Pass the question to renderAnswer for fund context logic
+      data.question = question;
       renderAnswer(data);
     } catch (e) {
       console.error('API error:', e);
@@ -368,9 +421,9 @@
       if (typingEl) {
         typingEl.outerHTML = `
           <div class="msg-bot">
-            <div class="avatar">t<span class="logo-dot" aria-hidden="true"></span></div>
-            <article class="guardrail-card guardrail-neutral">
-              <div class="guardrail-body">Something went wrong. Please try again in a moment.</div>
+            <div class="avatar">t<span class="dot" aria-hidden="true"></span></div>
+            <article class="info-card">
+              <p class="answer-text">Something went wrong. Please try again in a moment.</p>
             </article>
           </div>
         `;
@@ -381,6 +434,9 @@
   async function renderChatView(question, scheme) {
     const mainEl = document.querySelector('.main');
     if (!mainEl) return;
+
+    // Add chat main class
+    mainEl.classList.add('is-chat-main');
 
     // Determine fund display name from scheme
     const schemeToDisplay = {
@@ -409,7 +465,7 @@
         <div class="messages-inner">
           <div class="msg-user">${escapeHtml(question)}</div>
           <div class="msg-bot">
-            <div class="avatar">t<span class="logo-dot" aria-hidden="true"></span></div>
+            <div class="avatar">t<span class="dot" aria-hidden="true"></span></div>
             <article class="typing-indicator">Tathya is typing…</article>
           </div>
         </div>
@@ -418,12 +474,12 @@
         <form class="composer-pill" id="chat-composer-form" autocomplete="off">
           <label for="q-deskchat" class="sr-only">Ask a follow-up</label>
           <input id="q-deskchat" type="text" placeholder="Ask a question about a fund…" aria-label="Ask a question about a fund" required>
-          <button type="submit" class="chat-send-btn" aria-label="Send">
+          <button type="submit" class="composer-send" aria-label="Send">
             <svg class="icon arrow-up" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"></path><path d="M6 11l6-6 6 6"></path></svg>
           </button>
         </form>
       </div>
-      <p class="chat-disclaimer">Mutual Fund investments are subject to market risks, read all scheme related documents carefully. Tathya shares facts from public Groww pages (as of 27 Sep 2026) for information only. It is not investment advice or a recommendation to buy or sell any fund.</p>
+      <p class="chat-disclaimer">Mutual fund investments carry market risk. Facts only, not advice.</p>
     `;
 
     // Update messages reference
@@ -440,9 +496,14 @@
           chatInput.value = '';
           const fundSelectValue = state.activeFund || 'all';
           const followUpScheme = fundSelectValue === 'all' ? null : FUND_SCHEME_MAP[fundSelectValue];
-          sendQuestion(q, followUpScheme);
+          sendQuestion(q, followUpScheme, fundSelectValue);
         }
       });
+    }
+
+    // If there's an active fund, fetch and populate sources panel
+    if (state.activeFund) {
+      fetchFundFacts(state.activeFund);
     }
 
     // Make actual API call
@@ -453,6 +514,7 @@
         body: JSON.stringify({ question, scheme })
       });
       const data = await response.json();
+      data.question = question;
       renderAnswer(data);
     } catch (e) {
       console.error('API error:', e);
@@ -460,9 +522,9 @@
       if (typingEl) {
         typingEl.outerHTML = `
           <div class="msg-bot">
-            <div class="avatar">t<span class="logo-dot" aria-hidden="true"></span></div>
-            <article class="guardrail-card guardrail-neutral">
-              <div class="guardrail-body">Something went wrong. Please try again in a moment.</div>
+            <div class="avatar">t<span class="dot" aria-hidden="true"></span></div>
+            <article class="info-card">
+              <p class="answer-text">Something went wrong. Please try again in a moment.</p>
             </article>
           </div>
         `;
@@ -490,6 +552,42 @@
       };
       const fundDisplay = fundNames[data.fund] || data.fund_display || 'HDFC Large Cap Fund';
 
+      // Format date as "27 Sep 2026"
+      const fetchDate = data.fetched_date || '27 Sep 2026';
+
+      // Step 4: Fund context logic - if question names no fund and no active fund, show fund selection prompt
+      const knownFields = ['expense ratio', 'exit load', 'sip', 'lock-in', 'riskometer', 'benchmark', 'manager', 'fund size'];
+      const questionLikelyNamesFund = knownFields.some(field => data.question?.toLowerCase().includes(field));
+      const noFundContext = !data.fund && !state.activeFund && questionLikelyNamesFund;
+
+      if (noFundContext) {
+        // Show fund selection prompt in info-card
+        const articleHtml = `
+          <article class="info-card" role="status">
+            <p class="answer-text">Which fund do you mean? Large Cap, Flexi Cap, ELSS Tax Saver, Small Cap or Balanced Advantage.</p>
+          </article>
+        `;
+        const typingEl = els.messages.querySelector('.typing-indicator');
+        if (typingEl) {
+          const msgBotEl = typingEl.closest('.msg-bot');
+          if (msgBotEl) {
+            msgBotEl.innerHTML = `
+              <div class="avatar">t<span class="dot" aria-hidden="true"></span></div>
+              ${articleHtml}
+            `;
+          } else {
+            typingEl.outerHTML = `
+              <div class="msg-bot">
+                <div class="avatar">t<span class="dot" aria-hidden="true"></span></div>
+                ${articleHtml}
+              </div>
+            `;
+          }
+        }
+        els.messages.scrollTop = els.messages.scrollHeight;
+        return;
+      }
+
       // Build answer article
       let articleHtml = '';
 
@@ -498,24 +596,23 @@
         const hasSourceUrl = data.source_url && data.source_url.trim() !== '';
 
         if (isRefusal) {
-          // Warm card (#FFF4E5) for advisory/returns/pii
+          // Refusal card (peach #FFF4E5)
           articleHtml = `
-            <article class="guardrail-card guardrail-warm" role="alert">
-              ${title ? `<div class="guardrail-title">${escapeHtml(title)}</div>` : ''}
-              <div class="guardrail-body">${escapeHtml(data.answer)}</div>
+            <article class="refusal-card" role="alert">
+              <p class="answer-title">${escapeHtml(title || "I can't give investment advice.")}</p>
+              <p class="answer-text">${escapeHtml(data.answer)}</p>
               ${hasSourceUrl ? `
-                <a class="guardrail-link" href="${escapeHtml(data.source_url)}" target="_blank" rel="noopener">Learn more</a>
+                <a class="learn-more" href="${escapeHtml(data.source_url)}" target="_blank" rel="noopener">Learn more</a>
               ` : ''}
             </article>
           `;
         } else {
-          // Neutral white card for other guardrails and not found
+          // Info card (same shape/bg as answer-card)
           articleHtml = `
-            <article class="guardrail-card guardrail-neutral" role="status">
-              ${title ? `<div class="guardrail-title">${escapeHtml(title)}</div>` : ''}
-              <div class="guardrail-body">${escapeHtml(data.answer)}</div>
+            <article class="info-card" role="status">
+              <p class="answer-text">${escapeHtml(data.answer)}</p>
               ${hasSourceUrl ? `
-                <a class="guardrail-link" href="${escapeHtml(data.source_url)}" target="_blank" rel="noopener">Learn more</a>
+                <a class="learn-more" href="${escapeHtml(data.source_url)}" target="_blank" rel="noopener">Learn more</a>
               ` : ''}
             </article>
           `;
@@ -531,9 +628,9 @@
           const value = valueMatch ? valueMatch[1] : data.title;
           const label = data.title.toLowerCase().replace('ratio', 'ratio');
           bigNumberHtml = `
-            <div class="answer-big-figure">
-              <span class="value">${escapeHtml(value)}</span>
-              <span class="unit">${escapeHtml(label)}</span>
+            <div class="answer-number-row">
+              <span class="answer-number">${escapeHtml(value)}</span>
+              <span class="answer-label">${escapeHtml(label)}</span>
             </div>
           `;
         }
@@ -556,19 +653,22 @@
         }
 
         articleHtml = `
-          <article class="answer-article">
-            <span class="answer-header">${escapeHtml(fundDisplay)} · Direct Plan · Growth</span>
+          <article class="answer-card">
             ${bigNumberHtml}
-            <p class="answer-body">${escapeHtml(data.answer)}</p>
+            <p class="answer-text">${escapeHtml(data.answer)}</p>
             ${managerChipsHtml}
-            <div class="answer-footer">
+            <div class="answer-source-row">
               <a class="source-link-row" href="${escapeHtml(data.source_url || '#')}" target="_blank" rel="noopener">
                 <svg class="icon external" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0369A1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"></path><path d="M20 4l-9 9"></path><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"></path></svg>
                 <span>Source: groww.in</span>
               </a>
-              <span class="source-date">Updated ${escapeHtml(data.fetched_date || '27 Sep 2026')}</span>
-            </div          </article>
+              <span class="source-date">Updated ${escapeHtml(fetchDate)}</span>
+            </div>
+          </article>
         `;
+
+        // Populate sources panel for normal fund answers
+        populateSourcesPanel(data, fundDisplay, fetchDate);
       }
 
       // Replace typing indicator with bot response
@@ -577,14 +677,14 @@
         const msgBotEl = typingEl.closest('.msg-bot');
         if (msgBotEl) {
           msgBotEl.innerHTML = `
-            <div class="avatar">t<span class="logo-dot" aria-hidden="true"></span></div>
+            <div class="avatar">t<span class="dot" aria-hidden="true"></span></div>
             ${articleHtml}
           `;
         } else {
           // Fallback for initial render
           typingEl.outerHTML = `
             <div class="msg-bot">
-              <div class="avatar">t<span class="logo-dot" aria-hidden="true"></span></div>
+              <div class="avatar">t<span class="dot" aria-hidden="true"></span></div>
               ${articleHtml}
             </div>
           `;
@@ -597,14 +697,50 @@
       const typingEl = els.messages.querySelector('.typing-indicator');
       if (typingEl) {
         typingEl.outerHTML = `
-          <div class="bot-row">
-            <div class="bot-avatar">t<span class="logo-dot" aria-hidden="true"></span></div>
-            <article class="guardrail-card guardrail-neutral">
-              <div class="guardrail-body">Something went wrong. Please try again in a moment.</div>
+          <div class="msg-bot">
+            <div class="avatar">t<span class="dot" aria-hidden="true"></span></div>
+            <article class="info-card">
+              <p class="answer-text">Something went wrong. Please try again in a moment.</p>
             </article>
           </div>
         `;
       }
+    }
+  }
+
+  function populateSourcesPanel(data, fundDisplay, fetchDate) {
+    const fundCardEl = document.getElementById('source-fund-card');
+    const factsEl = document.getElementById('source-facts');
+    const openBtnEl = document.getElementById('open-source-btn');
+
+    if (fundCardEl) {
+      fundCardEl.innerHTML = `
+        <div class="sp-fund-title">${escapeHtml(fundDisplay)} (Direct Growth)</div>
+        <div class="sp-fund-meta">groww.in · Updated ${escapeHtml(fetchDate)}</div>
+      `;
+    }
+
+    if (factsEl && data.facts) {
+      const factRows = [
+        { label: 'Expense ratio', value: data.facts.expense_ratio || '—' },
+        { label: 'Exit load', value: data.facts.exit_load || '—' },
+        { label: 'Minimum SIP', value: data.facts.min_sip ? `₹${data.facts.min_sip}` : '—' },
+        { label: 'Riskometer', value: data.facts.riskometer || '—' },
+        { label: 'Benchmark', value: data.facts.benchmark || '—' },
+        { label: 'Fund size', value: data.facts.fund_size ? `₹${data.facts.fund_size} crore` : '—' },
+        { label: 'Fund managers', value: data.facts.managers || '—' }
+      ];
+
+      factsEl.innerHTML = factRows.map(row => `
+        <div class="sp-row">
+          <dt>${escapeHtml(row.label)}</dt>
+          <dd>${escapeHtml(row.value)}</dd>
+        </div>
+      `).join('');
+    }
+
+    if (openBtnEl && data.source_url) {
+      openBtnEl.href = data.source_url;
     }
   }
 
