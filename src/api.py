@@ -17,7 +17,8 @@ from pydantic import BaseModel
 from src.ingest import load_env, rebuild_index
 from src.retrieve import retrieve_chunks, retrieve_all_funds_fact, is_all_funds_query, get_fact_heading, ALL_FUNDS, detect_scheme
 from src.generate import generate_answer, extract_answer
-from src.guardrails import check_guardrails, GuardrailResult
+from src.guardrails import check_guardrails, GuardrailResult, AMFI_URL, TODAY_DATE
+from src.intent import classify_intent
 from src.common import get_collection, COLLECTION_NAME, CORPUS_PATH, TOP_K, SCORE_THRESHOLD, NOT_FOUND_OVERRIDE_THRESHOLD
 
 
@@ -209,8 +210,9 @@ def _parse_fund_file(filepath: Path) -> FundResponse:
                     match = re.search(r"(\d+%.+?)(?:\.|$)", text)
                     exit_load = match.group(1).strip() if match else text[:100]
     
-    # Replace "redeemed" with "sold" in exit_load output
-    exit_load = exit_load.replace("redeemed", "sold")
+    # Replace "redeemed"/"redemption" with "sold"/"sale" in exit_load output
+    exit_load = exit_load.replace("redeemed", "sold").replace("Redeemed", "Sold")
+    exit_load = exit_load.replace("redemption", "sale").replace("Redemption", "Sale")
     
     # Extract min SIP
     min_sip = ""
@@ -337,6 +339,68 @@ def post_chat(req: ChatRequest) -> ChatResponse:
             },
         )
 
+    # AI Intent Check (Layer 2) - after keyword guardrails, before retrieval
+    # Determine active fund for context
+    auto_scheme = detect_scheme(req.question)
+    explicit_scheme = req.scheme
+    valid_explicit_scheme = explicit_scheme if explicit_scheme in ALL_FUNDS else None
+    active_fund = auto_scheme or valid_explicit_scheme
+
+    intent_label = classify_intent(req.question, active_fund)
+    if intent_label == "ADVICE":
+        return ChatResponse(
+            answer="I cannot provide investment advice. For investor education, please visit AMFI's Mutual Funds Sahi Hai.",
+            source_url=AMFI_URL,
+            fetched_date=TODAY_DATE,
+            debug={
+                "threshold_passed": False,
+                "matches": [],
+                "guardrail": "advisory",
+                "fallback": False,
+                "intent": intent_label,
+            },
+        )
+    if intent_label == "RETURNS":
+        return ChatResponse(
+            answer="I cannot provide performance or returns data. Please refer to the official HDFC factsheet.",
+            source_url=HDFC_FACTSHEET_URL,
+            fetched_date=TODAY_DATE,
+            debug={
+                "threshold_passed": False,
+                "matches": [],
+                "guardrail": "returns",
+                "fallback": False,
+                "intent": intent_label,
+            },
+        )
+    if intent_label == "OFF_TOPIC":
+        return ChatResponse(
+            answer="I only cover 5 HDFC Mutual Fund schemes: Large Cap, Flexi Cap, ELSS Tax Saver, Small Cap, and Balanced Advantage.",
+            source_url="",
+            fetched_date="",
+            debug={
+                "threshold_passed": False,
+                "matches": [],
+                "guardrail": "out_of_scope",
+                "fallback": False,
+                "intent": intent_label,
+            },
+        )
+    if intent_label == "NONSENSE":
+        return ChatResponse(
+            answer="I don't have that information yet.",
+            source_url="",
+            fetched_date="",
+            debug={
+                "threshold_passed": False,
+                "matches": [],
+                "guardrail": "not_found",
+                "fallback": False,
+                "intent": intent_label,
+            },
+        )
+    # FACT -> continue to retrieval
+
     def _short_name(scheme_name: str) -> str:
         """Extract short fund name from scheme_name (remove plan suffix and 'formerly')."""
         return " ".join(
@@ -346,15 +410,8 @@ def post_chat(req: ChatRequest) -> ChatResponse:
             .split()
         )
 
-    # Determine scheme filter: question's fund wins over explicit scheme; invalid scheme is ignored
-    explicit_scheme = req.scheme
-    auto_scheme = detect_scheme(req.question)
-
-    # Validate explicit scheme against known funds
-    valid_explicit_scheme = explicit_scheme if explicit_scheme in ALL_FUNDS else None
-
-    # Question's fund wins over explicit scheme
-    scheme_name = auto_scheme or valid_explicit_scheme
+    # Use the already-determined active_fund from intent check
+    scheme_name = active_fund
 
     # Augment retrieval query with fund name ONLY when question contains a fund-fact keyword
     retrieval_question = req.question
@@ -496,8 +553,9 @@ def post_chat(req: ChatRequest) -> ChatResponse:
     except Exception as e:
         # Groq call failed - use extractive fallback
         fallback_answer = extract_answer(chunks[0]["text"], req.question)
-        fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
-        top_chunk = chunks[0]
+fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
+            fallback_answer = fallback_answer.replace("redemption", "sale").replace("Redemption", "Sale")
+            top_chunk = chunks[0]
         return ChatResponse(
             answer=fallback_answer,
             source_url=top_chunk["source_url"],
@@ -516,7 +574,8 @@ def post_chat(req: ChatRequest) -> ChatResponse:
         top_score = scores[0] if scores else 0
         if top_score >= NOT_FOUND_OVERRIDE_THRESHOLD:
             fallback_answer = extract_answer(chunks[0]["text"], req.question)
-            fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
+fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
+        fallback_answer = fallback_answer.replace("redemption", "sale").replace("Redemption", "Sale")
             top_chunk = chunks[0]
             return ChatResponse(
                 answer=fallback_answer,
@@ -543,8 +602,9 @@ def post_chat(req: ChatRequest) -> ChatResponse:
         )
 
     # Groq returned an answer - attach metadata from top chunk
-    # Post-process: replace "redeemed" with "sold" for exit load answers
+    # Post-process: replace "redeemed"/"redemption" with "sold" for exit load answers
     answer = answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
+    answer = answer.replace("redemption", "sale").replace("Redemption", "Sale")
     top_chunk = chunks[0]
     return ChatResponse(
         answer=answer,

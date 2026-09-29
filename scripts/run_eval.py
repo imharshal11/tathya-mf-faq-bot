@@ -3,6 +3,7 @@
 import csv
 import sys
 import os
+import time
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -30,15 +31,34 @@ def run_eval(csv_path: str):
         must_not_contain = row["must_not_contain"] if row.get("must_not_contain") else ""
         scheme = row.get("scheme", "") if "scheme" in row else ""
 
-        try:
-            payload = {"question": question}
-            if scheme:
-                payload["scheme"] = scheme
-            resp = client.post("/chat", json=payload)
-            data = resp.json()
-        except Exception as e:
-            failed.append((i, question, f"Request error: {e}", ""))
-            continue
+        # Rate limit: wait ~4 seconds between questions (Groq free tier: 30 req/min)
+        if i > 1:
+            time.sleep(4)
+
+        # Retry once on 429 (rate limit) after 20 seconds
+        for attempt in range(2):
+            try:
+                payload = {"question": question}
+                if scheme:
+                    payload["scheme"] = scheme
+                resp = client.post("/chat", json=payload)
+                if resp.status_code == 429 and attempt == 0:
+                    time.sleep(20)
+                    continue
+                data = resp.json()
+                break
+            except Exception as e:
+                if attempt == 0:
+                    time.sleep(20)
+                    continue
+                failed.append((i, question, f"Request error: {e}", ""))
+                data = {}
+                break
+        else:
+            # If we exhausted retries
+            if not data:
+                failed.append((i, question, "Rate limited after retry", ""))
+                continue
 
         answer = data.get("answer", "")
         debug = data.get("debug", {})
