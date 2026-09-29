@@ -10,16 +10,8 @@
     isChat: false,
     activeFund: null,
     recentQuestions: [],
-    typing: false
-  };
-
-  // Fund ID to scheme_name mapping (matches corpus scheme_name values)
-  const FUND_SCHEME_MAP = {
-    'large-cap': 'HDFC Large Cap Fund - Direct Growth',
-    'flexi-cap': 'HDFC Flexi Cap Fund (formerly HDFC Equity Fund) - Direct Growth',
-    'elss': 'HDFC ELSS Tax Saver Fund - Direct Plan Growth',
-    'small-cap': 'HDFC Small Cap Fund - Direct Growth',
-    'balanced': 'HDFC Balanced Advantage Fund - Direct Growth'
+    typing: false,
+    fundsList: []
   };
 
   // DOM Elements
@@ -39,9 +31,10 @@
   };
 
   // Initialize
-  function init() {
+  async function init() {
     detectViewport();
     bindEvents();
+    await loadFundsList();
     renderHome();
   }
 
@@ -51,6 +44,17 @@
     const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
 
     document.body.dataset.viewport = isMobile ? 'mobile' : (isTablet ? 'tablet' : 'desktop');
+  }
+
+  async function loadFundsList() {
+    try {
+      const response = await fetch('/funds');
+      if (response.ok) {
+        state.fundsList = await response.json();
+      }
+    } catch (e) {
+      console.error('Failed to load funds list:', e);
+    }
   }
 
   function bindEvents() {
@@ -100,18 +104,10 @@
     }
   }
 
-  async function fetchFundFacts(fundId) {
-    try {
-      const response = await fetch(`/funds/${fundId}`);
-      if (!response.ok) return;
-      const data = await response.json();
-      if (data.facts) {
-        const fundDisplay = data.name || fundId;
-        const fetchDate = data.fetched_date || '27 Sep 2026';
-        populateSourcesPanel(data, fundDisplay, fetchDate);
-      }
-    } catch (e) {
-      console.error('Failed to fetch fund facts:', e);
+  function fetchFundFacts(fundId) {
+    const fund = state.fundsList.find(f => f.short_name === fundId || f.id === fundId);
+    if (fund) {
+      populateSourcesPanel(fund);
     }
   }
 
@@ -341,7 +337,7 @@
     } else {
       fundSelectValue = els.fundSelect?.value || 'all';
     }
-    const scheme = fundSelectValue === 'all' ? null : FUND_SCHEME_MAP[fundSelectValue];
+    const scheme = fundSelectValue === 'all' ? null : getSchemeName(fundSelectValue);
     sendQuestion(question, scheme, fundSelectValue);
   }
 
@@ -379,10 +375,15 @@
     // Auto-scroll to bottom
     els.messages.scrollTop = els.messages.scrollHeight;
 
-    // Determine fund for API call: use active fund if no fund specified in question
-    // Step 4: If question names no fund, use active fund; else reply with fund selection prompt
+    // Determine fund for API call: use active fund (from latest answer or sidebar selection)
+    // The active fund is tracked by short_name, find its scheme_name from the funds list
     let apiScheme = fund;
-    let apiFundId = fundId || state.activeFund;
+    if (!apiScheme && state.activeFund) {
+      const activeFundObj = state.fundsList.find(f => f.short_name === state.activeFund);
+      if (activeFundObj) {
+        apiScheme = activeFundObj.full_name;
+      }
+    }
 
     // Fetch answer
     try {
@@ -475,7 +476,7 @@
         if (q) {
           chatInput.value = '';
           const fundSelectValue = state.activeFund || 'all';
-          const followUpScheme = fundSelectValue === 'all' ? null : FUND_SCHEME_MAP[fundSelectValue];
+          const followUpScheme = fundSelectValue === 'all' ? null : getSchemeName(fundSelectValue);
           sendQuestion(q, followUpScheme, fundSelectValue);
         }
       });
@@ -615,7 +616,13 @@
         `;
 
         // Populate sources panel for normal fund answers
-        populateSourcesPanel(data, fundDisplay, fetchDate);
+        const fundFromAnswer = findFundBySourceUrl(data.source_url);
+        if (fundFromAnswer) {
+          state.activeFund = fundFromAnswer.short_name;
+          populateSourcesPanel(fundFromAnswer);
+        } else {
+          populateSourcesPanel(data, fundDisplay, fetchDate);
+        }
       }
 
       // Replace typing indicator with bot response
@@ -655,27 +662,31 @@
     }
   }
 
-  function populateSourcesPanel(data, fundDisplay, fetchDate) {
+  function populateSourcesPanel(fund) {
     const fundCardEl = document.getElementById('source-fund-card');
     const factsEl = document.getElementById('source-facts');
     const openBtnEl = document.getElementById('open-source-btn');
 
+    if (!fund) return;
+
     if (fundCardEl) {
+      const fetchDate = fund.fetched_date ? formatDate(fund.fetched_date) : 'Not on source page';
       fundCardEl.innerHTML = `
-        <div class="sp-fund-title">${escapeHtml(fundDisplay)} (Direct Growth)</div>
+        <div class="sp-fund-title">${escapeHtml(fund.display_name)} (Direct Growth)</div>
         <div class="sp-fund-meta">groww.in · Updated ${escapeHtml(fetchDate)}</div>
       `;
     }
 
-    if (factsEl && data.facts) {
+    if (factsEl) {
+      const managers = (fund.fund_managers || []).map(m => m.name).join(', ') || 'Not on source page';
       const factRows = [
-        { label: 'Expense ratio', value: data.facts.expense_ratio || '—' },
-        { label: 'Exit load', value: data.facts.exit_load || '—' },
-        { label: 'Minimum SIP', value: data.facts.min_sip ? `₹${data.facts.min_sip}` : '—' },
-        { label: 'Riskometer', value: data.facts.riskometer || '—' },
-        { label: 'Benchmark', value: data.facts.benchmark || '—' },
-        { label: 'Fund size', value: data.facts.fund_size ? `₹${data.facts.fund_size} crore` : '—' },
-        { label: 'Fund managers', value: data.facts.managers || '—' }
+        { label: 'Expense ratio', value: fund.expense_ratio || 'Not on source page' },
+        { label: 'Exit load', value: fund.exit_load || 'Not on source page' },
+        { label: 'Minimum SIP', value: fund.min_sip ? `₹${fund.min_sip}` : 'Not on source page' },
+        { label: 'Riskometer', value: fund.riskometer || 'Not on source page' },
+        { label: 'Benchmark', value: fund.benchmark || 'Not on source page' },
+        { label: 'Fund size', value: fund.aum ? `₹${fund.aum} crore` : 'Not on source page' },
+        { label: 'Fund managers', value: managers }
       ];
 
       factsEl.innerHTML = factRows.map(row => `
@@ -686,9 +697,25 @@
       `).join('');
     }
 
-    if (openBtnEl && data.source_url) {
-      openBtnEl.href = data.source_url;
+    if (openBtnEl && fund.source_url) {
+      openBtnEl.href = fund.source_url;
     }
+  }
+
+  function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    const options = { day: 'numeric', month: 'short', year: 'numeric' };
+    return date.toLocaleDateString('en-GB', options).replace(/ /g, ' ');
+  }
+
+  function findFundBySourceUrl(sourceUrl) {
+    if (!sourceUrl) return null;
+    return state.fundsList.find(f => f.source_url === sourceUrl);
+  }
+
+  function getSchemeName(shortName) {
+    const fund = state.fundsList.find(f => f.short_name === shortName);
+    return fund ? fund.full_name : null;
   }
 
   function escapeHtml(text) {
