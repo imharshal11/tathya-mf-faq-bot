@@ -413,8 +413,251 @@ a:hover { color: #075985; }
     stroke: #0F172A;
   }
 
-  /* Main — Empty state (HOME) styles will be added in Phase 3 */
-  /* Sources panel — will be styled in Phase 4 */
+  /* ============================================================
+     DESKTOP MAIN — HOME STATE (copied from Docx/design/desktop-home.html)
+     ============================================================ */
+
+  .main {
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    overflow: hidden;
+  }
+
+  /* Hero logo: 3 nested layers */
+  .empty-state {
+    width: 100%;
+    max-width: 760px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+    text-align: center;
+  }
+
+  .hero-logo {
+    width: 132px;
+    height: 132px;
+    border-radius: 50%;
+    background: #EEF6FD;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hero-logo-inner {
+    width: 98px;
+    height: 98px;
+    border-radius: 50%;
+    background: #DBEEFD;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hero-logo-tile {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    background: #0B2A5B;
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 38px;
+    line-height: 1;
+    position: relative;
+  }
+
+  .hero-logo-tile .logo-dot {
+    right: 13px;
+    top: 13px;
+    width: 9px;
+    height: 9px;
+  }
+
+  /* Text block */
+  .empty-heading {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 36px;
+    line-height: 1.2;
+    letter-spacing: -0.6px;
+    color: #0F172A;
+    text-align: center;
+  }
+
+  .empty-heading .sky {
+    color: #0284C7;
+  }
+
+  .empty-subtext {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #475569;
+    text-align: center;
+  }
+
+  /* Suggestion chips */
+  .topic-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    max-width: 760px;
+  }
+
+  .topic-chip {
+    height: 38px;
+    padding: 0 16px;
+    border-radius: 999px;
+    background: #FFFFFF;
+    border: 1px solid #E3E8EF;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: #0F172A;
+    cursor: pointer;
+  }
+
+  .topic-chip:hover {
+    border-color: #D5DDE8;
+    background: #F6F8FB;
+  }
+
+  /* Composer card */
+  .composer-card {
+    width: 100%;
+    max-width: 780px;
+    background: #FFFFFF;
+    border: 1px solid #D5DDE8;
+    border-radius: 24px;
+    padding: 16px 16px 14px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 10px 30px rgba(11, 42, 91, 0.08);
+  }
+
+  .composer-card textarea {
+    width: 100%;
+    min-height: 48px;
+    border: none;
+    outline: none;
+    resize: none;
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #0F172A;
+  }
+
+  .composer-card textarea::placeholder {
+    color: #64748B;
+  }
+
+  .composer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .fund-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .fund-field label {
+    font-size: 13px;
+    color: #64748B;
+    white-space: nowrap;
+  }
+
+  .fund-select {
+    height: 40px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: #F1F5F9;
+    border: 1px solid #E3E8EF;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: #0F172A;
+    width: auto;
+    flex: none;
+  }
+
+  .send-pill {
+    height: 44px;
+    padding: 0 20px;
+    border-radius: 999px;
+    background: #0B2A5B;
+    color: #FFFFFF;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+    cursor: pointer;
+  }
+
+  .send-pill .icon {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+  }
+
+  /* Funds covered row — inline */
+  .funds-covered-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .funds-covered-label {
+    font-size: 13px;
+    color: #64748B;
+  }
+
+  .fund-chip {
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: #0F172A;
+  }
+
+  .fund-chip.large-cap { background: #DBEEFD; }
+  .fund-chip.flexi-cap { background: #E3E6FB; }
+  .fund-chip.elss { background: #D5F5EE; }
+  .fund-chip.small-cap { background: #FCEFCB; }
+  .fund-chip.balanced { background: #E2E8F0; }
+
+  /* Disclaimer — no icon, plain p */
+  .disclaimer-text {
+    margin: 0;
+    max-width: 760px;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #64748B;
+  }
 
   /* Icons */
   .icon {

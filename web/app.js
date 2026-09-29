@@ -122,14 +122,12 @@
     if (els.messages) {
       els.messages.innerHTML = `
         <div class="empty-state">
-          <div class="empty-circles" aria-hidden="true">
-            <div style="width: 132px; height: 132px; border-radius: 50%; background: #EEF6FD; display: flex; align-items: center; justify-content: center;">
-              <div style="width: 98px; height: 98px; border-radius: 50%; background: #DBEEFD; display: flex; align-items: center; justify-content: center;">
-                <div class="logo-icon" style="width: 64px; height: 64px; border-radius: 18px; background: #0B2A5B; color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 38px; line-height: 1; position: relative;">t<span class="logo-dot" style="position: absolute; right: 13px; top: 13px; width: 9px; height: 9px; border-radius: 50%; background: #0EA5E9;"></span></div>
-              </div>
+          <div class="hero-logo" aria-hidden="true">
+            <div class="hero-logo-inner">
+              <div class="hero-logo-tile">t<span class="logo-dot" aria-hidden="true"></span></div>
             </div>
           </div>
-          <h1 class="empty-heading">Hi, I'm <span style="color: #0284C7;">Tathya</span>. Which fund fact can I find for you?</h1>
+          <h1 class="empty-heading">Hi, I'm <span class="sky">Tathya</span>. Which fund fact can I find for you?</h1>
           <p class="empty-subtext">I answer only from 5 HDFC fund pages, and I show the source and date for every answer.</p>
           <div class="topic-chips" role="group" aria-label="Suggested topics">
             <button class="topic-chip" type="button" data-topic="expense-ratio">Expense ratio</button>
@@ -155,7 +153,10 @@
                   <option value="balanced">HDFC Balanced Advantage Fund</option>
                 </select>
               </div>
-              <button type="button" class="send-pill">Send</button>
+              <button type="button" class="send-pill">
+                <span>Send</span>
+                <svg class="icon arrow-up" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"></path><path d="M6 11l6-6 6 6"></path></svg>
+              </button>
             </div>
           </div>
           <div class="funds-covered-row">
