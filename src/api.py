@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from src.ingest import load_env, rebuild_index
-from src.retrieve import retrieve_chunks, retrieve_all_funds_fact, is_all_funds_query, get_fact_heading
+from src.retrieve import retrieve_chunks, retrieve_all_funds_fact, is_all_funds_query, get_fact_heading, ALL_FUNDS, detect_scheme
 from src.generate import generate_answer, extract_answer
 from src.guardrails import check_guardrails, GuardrailResult
 from src.common import get_collection, COLLECTION_NAME, CORPUS_PATH
@@ -308,7 +308,9 @@ def post_chat(req: ChatRequest) -> ChatResponse:
         )
 
     # Guardrails first
-    guardrail_result = check_guardrails(req.question, explicit_scheme=req.scheme)
+    # Use validated scheme for guardrails (invalid schemes treated as null)
+    validated_scheme = req.scheme if req.scheme in ALL_FUNDS else None
+    guardrail_result = check_guardrails(req.question, explicit_scheme=validated_scheme)
     if guardrail_result.triggered:
         # For guardrails that don't need a link/date, use empty strings
         source_url = guardrail_result.source_url if guardrail_result.source_url else ""
@@ -325,13 +327,15 @@ def post_chat(req: ChatRequest) -> ChatResponse:
             },
         )
 
-    # Determine scheme filter: explicit scheme param overrides auto-detection if no fund named in question
+    # Determine scheme filter: question's fund wins over explicit scheme; invalid scheme is ignored
     explicit_scheme = req.scheme
-    auto_scheme = None
-    if not explicit_scheme:
-        from src.retrieve import detect_scheme
-        auto_scheme = detect_scheme(req.question)
-    scheme_name = explicit_scheme or auto_scheme
+    auto_scheme = detect_scheme(req.question)
+
+    # Validate explicit scheme against known funds
+    valid_explicit_scheme = explicit_scheme if explicit_scheme in ALL_FUNDS else None
+
+    # Question's fund wins over explicit scheme
+    scheme_name = auto_scheme or valid_explicit_scheme
 
     # Check for all-funds query (comparison or "all funds")
     if is_all_funds_query(req.question):

@@ -13,6 +13,15 @@
     typing: false
   };
 
+  // Fund ID to scheme_name mapping (matches corpus scheme_name values)
+  const FUND_SCHEME_MAP = {
+    'large-cap': 'HDFC Large Cap Fund - Direct Growth',
+    'flexi-cap': 'HDFC Flexi Cap Fund (formerly HDFC Equity Fund) - Direct Growth',
+    'elss': 'HDFC ELSS Tax Saver Fund - Direct Plan Growth',
+    'small-cap': 'HDFC Small Cap Fund - Direct Growth',
+    'balanced': 'HDFC Balanced Advantage Fund - Direct Growth'
+  };
+
   // DOM Elements
   const els = {
     app: document.querySelector('.app'),
@@ -305,8 +314,9 @@
     const question = els.textarea?.value?.trim();
     if (!question) return;
 
-    const fund = els.fundSelect?.value || 'all';
-    sendQuestion(question, fund);
+    const fundSelectValue = els.fundSelect?.value || 'all';
+    const scheme = fundSelectValue === 'all' ? null : FUND_SCHEME_MAP[fundSelectValue];
+    sendQuestion(question, scheme);
   }
 
   async function sendQuestion(question, fund) {
@@ -368,19 +378,19 @@
     }
   }
 
-  async function renderChatView(question, fund) {
+  async function renderChatView(question, scheme) {
     const mainEl = document.querySelector('.main');
     if (!mainEl) return;
 
-    // Determine fund display name
-    const fundNames = {
-      'large-cap': 'HDFC Large Cap Fund',
-      'flexi-cap': 'HDFC Flexi Cap Fund',
-      'elss': 'HDFC ELSS Tax Saver Fund',
-      'small-cap': 'HDFC Small Cap Fund',
-      'balanced': 'HDFC Balanced Advantage Fund'
+    // Determine fund display name from scheme
+    const schemeToDisplay = {
+      'HDFC Large Cap Fund - Direct Growth': 'HDFC Large Cap Fund',
+      'HDFC Flexi Cap Fund (formerly HDFC Equity Fund) - Direct Growth': 'HDFC Flexi Cap Fund',
+      'HDFC ELSS Tax Saver Fund - Direct Plan Growth': 'HDFC ELSS Tax Saver Fund',
+      'HDFC Small Cap Fund - Direct Growth': 'HDFC Small Cap Fund',
+      'HDFC Balanced Advantage Fund - Direct Growth': 'HDFC Balanced Advantage Fund'
     };
-    const fundDisplay = fundNames[fund] || fundNames['large-cap'];
+    const fundDisplay = scheme ? schemeToDisplay[scheme] : 'HDFC Mutual Fund FAQ';
 
     // Use active fund for header if available, otherwise show default
     const headerTitle = state.activeFund ? fundDisplay : 'HDFC Mutual Fund FAQ';
@@ -428,7 +438,9 @@
         const q = chatInput.value.trim();
         if (q) {
           chatInput.value = '';
-          sendQuestion(q, state.activeFund || 'all');
+          const fundSelectValue = state.activeFund || 'all';
+          const followUpScheme = fundSelectValue === 'all' ? null : FUND_SCHEME_MAP[fundSelectValue];
+          sendQuestion(q, followUpScheme);
         }
       });
     }
@@ -438,7 +450,7 @@
       const response = await fetch('/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, scheme: fund })
+        body: JSON.stringify({ question, scheme })
       });
       const data = await response.json();
       renderAnswer(data);
@@ -465,8 +477,8 @@
       const guardrail = data.debug?.guardrail;
       const isGuardrail = ['advisory', 'returns', 'pii', 'clarify', 'out_of_scope', 'greeting', 'thanks', 'live_data', 'plan_type'].includes(guardrail);
       const isNotFound = data.answer?.includes('Not in the knowledge base') || data.answer?.includes('not found');
-      const isRefusal = guardrail === 'advisory' || guardrail === 'returns' || guardrail === 'pii' || guardrail === 'out_of_scope';
-      const isNeutral = guardrail === 'greeting' || guardrail === 'thanks' || guardrail === 'clarify' || guardrail === 'live_data' || guardrail === 'plan_type' || isNotFound;
+      const isRefusal = guardrail === 'advisory' || guardrail === 'returns' || guardrail === 'pii';
+      const isNeutral = guardrail === 'greeting' || guardrail === 'thanks' || guardrail === 'clarify' || guardrail === 'live_data' || guardrail === 'plan_type' || guardrail === 'out_of_scope' || isNotFound;
 
       // Determine fund display name
       const fundNames = {
