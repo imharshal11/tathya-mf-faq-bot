@@ -315,16 +315,60 @@
 
     // Clear composer
     if (els.textarea) els.textarea.value = '';
+    const chatInput = document.querySelector('#q-deskchat');
+    if (chatInput) chatInput.value = '';
 
-    // Transition to chat state
-    state.isChat = true;
-    els.workspace?.classList.add('is-chat');
+    // If not in chat state yet, transition and render chat view
+    if (!state.isChat) {
+      state.isChat = true;
+      els.workspace?.classList.add('is-chat');
+      await renderChatView(question, fund);
+      return;
+    }
 
-    // Render chat view
-    renderChatView(question, fund);
+    // Follow-up question: append user message and fetch answer
+    if (!els.messages) return;
+    const messagesInner = els.messages.querySelector('.messages-inner');
+    if (!messagesInner) return;
+
+    // Append user message
+    messagesInner.insertAdjacentHTML('beforeend', `
+      <div class="msg-user">${escapeHtml(question)}</div>
+      <div class="msg-bot">
+        <div class="avatar">t<span class="logo-dot" aria-hidden="true"></span></div>
+        <article class="typing-indicator">Tathya is typing…</article>
+      </div>
+    `);
+
+    // Auto-scroll to bottom
+    els.messages.scrollTop = els.messages.scrollHeight;
+
+    // Fetch answer
+    try {
+      const response = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, scheme: fund })
+      });
+      const data = await response.json();
+      renderAnswer(data);
+    } catch (e) {
+      console.error('API error:', e);
+      const typingEl = els.messages.querySelector('.typing-indicator');
+      if (typingEl) {
+        typingEl.outerHTML = `
+          <div class="msg-bot">
+            <div class="avatar">t<span class="logo-dot" aria-hidden="true"></span></div>
+            <article class="guardrail-card guardrail-neutral">
+              <div class="guardrail-body">Something went wrong. Please try again in a moment.</div>
+            </article>
+          </div>
+        `;
+      }
+    }
   }
 
-  function renderChatView(question, fund) {
+  async function renderChatView(question, fund) {
     const mainEl = document.querySelector('.main');
     if (!mainEl) return;
 
@@ -338,21 +382,30 @@
     };
     const fundDisplay = fundNames[fund] || fundNames['large-cap'];
 
-    // Render full chat structure
+    // Use active fund for header if available, otherwise show default
+    const headerTitle = state.activeFund ? fundDisplay : 'HDFC Mutual Fund FAQ';
+    const headerSubtitle = state.activeFund ? 'Direct Plan · Growth' : 'Ask about 5 HDFC funds';
+
+    // Render full chat structure matching design
     mainEl.innerHTML = `
-      <div class="chat-header-bar">
-        <div class="fund-info-column">
-          <span class="fund-name">${escapeHtml(fundDisplay)}</span>
-          <span class="fund-plan">Direct Plan · Growth</span>
+      <header class="chat-header">
+        <div class="title">
+          <strong>${escapeHtml(headerTitle)}</strong>
+          <span>${escapeHtml(headerSubtitle)}</span>
         </div>
-        <span class="verified-pill"><span class="dot" aria-hidden="true"></span><span>Verified sources</span></span>
-      </div>
+        <span class="verified-badge"><span aria-hidden="true"></span>Verified sources</span>
+      </header>
       <div class="messages" id="messages" role="log" aria-live="polite" aria-label="Conversation">
-        <div class="bubble-user">${escapeHtml(question)}</div>
-        <div class="typing-indicator">Tathya is typing…</div>
+        <div class="messages-inner">
+          <div class="msg-user">${escapeHtml(question)}</div>
+          <div class="msg-bot">
+            <div class="avatar">t<span class="logo-dot" aria-hidden="true"></span></div>
+            <article class="typing-indicator">Tathya is typing…</article>
+          </div>
+        </div>
       </div>
-      <div class="chat-composer">
-        <form class="chat-composer-form" id="chat-composer-form" autocomplete="off">
+      <div class="composer-wrap">
+        <form class="composer-pill" id="chat-composer-form" autocomplete="off">
           <label for="q-deskchat" class="sr-only">Ask a follow-up</label>
           <input id="q-deskchat" type="text" placeholder="Ask a question about a fund…" aria-label="Ask a question about a fund" required>
           <button type="submit" class="chat-send-btn" aria-label="Send">
@@ -360,7 +413,7 @@
           </button>
         </form>
       </div>
-      <p class="chat-disclaimer">Mutual fund investments carry market risk. Facts only, not advice.</p>
+      <p class="chat-disclaimer">Mutual Fund investments are subject to market risks, read all scheme related documents carefully. Tathya shares facts from public Groww pages (as of 27 Sep 2026) for information only. It is not investment advice or a recommendation to buy or sell any fund.</p>
     `;
 
     // Update messages reference
@@ -380,107 +433,166 @@
       });
     }
 
-    // Simulate API call - replace with actual /chat POST in Phase 4
-    setTimeout(() => {
-      const mockAnswer = {
-        answer: 'The expense ratio of HDFC Large Cap Fund (Direct Growth) is 1.03%.',
-        title: 'Expense Ratio',
-        source_url: 'https://groww.in/mutual-funds/hdfc-large-cap-fund-direct-growth',
-        fetched_date: '27 Sep 2026',
-        debug: { guardrail: 'returns' },
-        fund: fund,
-        fund_display: fundDisplay
-      };
-      renderAnswer(mockAnswer);
-    }, 1500);
+    // Make actual API call
+    try {
+      const response = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, scheme: fund })
+      });
+      const data = await response.json();
+      renderAnswer(data);
+    } catch (e) {
+      console.error('API error:', e);
+      const typingEl = els.messages?.querySelector('.typing-indicator');
+      if (typingEl) {
+        typingEl.outerHTML = `
+          <div class="msg-bot">
+            <div class="avatar">t<span class="logo-dot" aria-hidden="true"></span></div>
+            <article class="guardrail-card guardrail-neutral">
+              <div class="guardrail-body">Something went wrong. Please try again in a moment.</div>
+            </article>
+          </div>
+        `;
+      }
+    }
   }
 
   function renderAnswer(data) {
     if (!els.messages) return;
 
-    const isRefusal = data.debug?.guardrail === 'advisory' || data.debug?.guardrail === 'out_of_scope';
-    const isSingleNumber = data.title && (data.answer.includes('%') || data.answer.match(/^[\d.]+%?$/));
+    try {
+      const guardrail = data.debug?.guardrail;
+      const isGuardrail = ['advisory', 'returns', 'pii', 'clarify', 'out_of_scope', 'greeting', 'thanks', 'live_data', 'plan_type'].includes(guardrail);
+      const isNotFound = data.answer?.includes('Not in the knowledge base') || data.answer?.includes('not found');
+      const isRefusal = guardrail === 'advisory' || guardrail === 'returns' || guardrail === 'pii' || guardrail === 'out_of_scope';
+      const isNeutral = guardrail === 'greeting' || guardrail === 'thanks' || guardrail === 'clarify' || guardrail === 'live_data' || guardrail === 'plan_type' || isNotFound;
 
-    // Determine fund display name
-    const fundNames = {
-      'large-cap': 'HDFC Large Cap Fund',
-      'flexi-cap': 'HDFC Flexi Cap Fund',
-      'elss': 'HDFC ELSS Tax Saver Fund',
-      'small-cap': 'HDFC Small Cap Fund',
-      'balanced': 'HDFC Balanced Advantage Fund'
-    };
-    const fundDisplay = fundNames[data.fund] || data.fund_display || 'HDFC Large Cap Fund';
+      // Determine fund display name
+      const fundNames = {
+        'large-cap': 'HDFC Large Cap Fund',
+        'flexi-cap': 'HDFC Flexi Cap Fund',
+        'elss': 'HDFC ELSS Tax Saver Fund',
+        'small-cap': 'HDFC Small Cap Fund',
+        'balanced': 'HDFC Balanced Advantage Fund'
+      };
+      const fundDisplay = fundNames[data.fund] || data.fund_display || 'HDFC Large Cap Fund';
 
-    // Build answer article
-    let articleHtml = '';
+      // Build answer article
+      let articleHtml = '';
 
-    if (isRefusal) {
-      articleHtml = `
-        <article class="refusal-article">
-          <div class="refusal-title">I can't give investment advice.</div>
-          <div class="refusal-body">I share facts only. To learn more about investing, visit AMFI's Mutual Funds Sahi Hai.</div>
-          <a class="refusal-link" href="https://www.mutualfundssahihai.com/en" target="_blank" rel="noopener">Learn more</a>
-        </article>
-      `;
-    } else {
-      // Big number row for single number/percent answers
-      let bigNumberHtml = '';
-      if (isSingleNumber && data.title) {
-        const valueMatch = data.answer.match(/([\d.]+%)/);
-        const value = valueMatch ? valueMatch[1] : data.title;
-        const label = data.title.toLowerCase().replace('ratio', 'ratio');
-        bigNumberHtml = `
-          <div class="answer-big-figure">
-            <span class="value">${escapeHtml(value)}</span>
-            <span class="unit">${escapeHtml(label)}</span>
-          </div>
+      if (isGuardrail || isNotFound) {
+        const title = data.title || '';
+        const hasSourceUrl = data.source_url && data.source_url.trim() !== '';
+
+        if (isRefusal) {
+          // Warm card (#FFF4E5) for advisory/returns/pii
+          articleHtml = `
+            <article class="guardrail-card guardrail-warm" role="alert">
+              ${title ? `<div class="guardrail-title">${escapeHtml(title)}</div>` : ''}
+              <div class="guardrail-body">${escapeHtml(data.answer)}</div>
+              ${hasSourceUrl ? `
+                <a class="guardrail-link" href="${escapeHtml(data.source_url)}" target="_blank" rel="noopener">Learn more</a>
+              ` : ''}
+            </article>
+          `;
+        } else {
+          // Neutral white card for other guardrails and not found
+          articleHtml = `
+            <article class="guardrail-card guardrail-neutral" role="status">
+              ${title ? `<div class="guardrail-title">${escapeHtml(title)}</div>` : ''}
+              <div class="guardrail-body">${escapeHtml(data.answer)}</div>
+              ${hasSourceUrl ? `
+                <a class="guardrail-link" href="${escapeHtml(data.source_url)}" target="_blank" rel="noopener">Learn more</a>
+              ` : ''}
+            </article>
+          `;
+        }
+      } else {
+        // Normal fund answer
+        const isSingleNumber = data.title && (data.answer.includes('%') || data.answer.match(/^[\d.]+%?$/));
+
+        // Big number row for single number/percent answers
+        let bigNumberHtml = '';
+        if (isSingleNumber && data.title) {
+          const valueMatch = data.answer.match(/([\d.]+%)/);
+          const value = valueMatch ? valueMatch[1] : data.title;
+          const label = data.title.toLowerCase().replace('ratio', 'ratio');
+          bigNumberHtml = `
+            <div class="answer-big-figure">
+              <span class="value">${escapeHtml(value)}</span>
+              <span class="unit">${escapeHtml(label)}</span>
+            </div>
+          `;
+        }
+
+        // Fund manager chips if applicable
+        let managerChipsHtml = '';
+        if (data.answer.includes('managed by') || data.answer.includes('manages')) {
+          managerChipsHtml = `
+            <div class="fund-manager-chips">
+              <span class="fund-manager-chip">
+                <span class="name">Rahul Baijal</span>
+                <span class="since">Since Jul 2022</span>
+              </span>
+              <span class="fund-manager-chip">
+                <span class="name">Dhruv Muchhal</span>
+                <span class="since">Since Jun 2023</span>
+              </span>
+            </div>
+          `;
+        }
+
+        articleHtml = `
+          <article class="answer-article">
+            <span class="answer-header">${escapeHtml(fundDisplay)} · Direct Plan · Growth</span>
+            ${bigNumberHtml}
+            <p class="answer-body">${escapeHtml(data.answer)}</p>
+            ${managerChipsHtml}
+            <div class="answer-footer">
+              <a class="source-link-row" href="${escapeHtml(data.source_url || '#')}" target="_blank" rel="noopener">
+                <svg class="icon external" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0369A1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"></path><path d="M20 4l-9 9"></path><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"></path></svg>
+                <span>Source: groww.in</span>
+              </a>
+              <span class="source-date">Updated ${escapeHtml(data.fetched_date || '27 Sep 2026')}</span>
+            </div          </article>
         `;
       }
 
-      // Fund manager chips if applicable
-      let managerChipsHtml = '';
-      if (data.answer.includes('managed by') || data.answer.includes('manages')) {
-        // This would be populated from structured data in real implementation
-        managerChipsHtml = `
-          <div class="fund-manager-chips">
-            <span class="fund-manager-chip">
-              <span class="name">Rahul Baijal</span>
-              <span class="since">Since Jul 2022</span>
-            </span>
-            <span class="fund-manager-chip">
-              <span class="name">Dhruv Muchhal</span>
-              <span class="since">Since Jun 2023</span>
-            </span>
+      // Replace typing indicator with bot response
+      const typingEl = els.messages.querySelector('.typing-indicator');
+      if (typingEl) {
+        const msgBotEl = typingEl.closest('.msg-bot');
+        if (msgBotEl) {
+          msgBotEl.innerHTML = `
+            <div class="avatar">t<span class="logo-dot" aria-hidden="true"></span></div>
+            ${articleHtml}
+          `;
+        } else {
+          // Fallback for initial render
+          typingEl.outerHTML = `
+            <div class="msg-bot">
+              <div class="avatar">t<span class="logo-dot" aria-hidden="true"></span></div>
+              ${articleHtml}
+            </div>
+          `;
+        }
+      }
+      // Auto-scroll to newest
+      els.messages.scrollTop = els.messages.scrollHeight;
+    } catch (e) {
+      console.error('Render error:', e);
+      const typingEl = els.messages.querySelector('.typing-indicator');
+      if (typingEl) {
+        typingEl.outerHTML = `
+          <div class="bot-row">
+            <div class="bot-avatar">t<span class="logo-dot" aria-hidden="true"></span></div>
+            <article class="guardrail-card guardrail-neutral">
+              <div class="guardrail-body">Something went wrong. Please try again in a moment.</div>
+            </article>
           </div>
         `;
       }
-
-      articleHtml = `
-        <article class="answer-article">
-          <span class="answer-header">${escapeHtml(fundDisplay)} · Direct Plan · Growth</span>
-          ${bigNumberHtml}
-          <p class="answer-body">${escapeHtml(data.answer)}</p>
-          ${managerChipsHtml}
-          <div class="answer-footer">
-            <a class="source-link-row" href="${escapeHtml(data.source_url || '#')}" target="_blank" rel="noopener">
-              <svg class="icon external" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0369A1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"></path><path d="M20 4l-9 9"></path><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"></path></svg>
-              <span>Source: groww.in</span>
-            </a>
-            <span class="source-date">Updated ${escapeHtml(data.fetched_date || '27 Sep 2026')}</span>
-          </div>
-        </article>
-      `;
-    }
-
-    // Replace typing indicator with bot response
-    const typingEl = els.messages.querySelector('.typing-indicator');
-    if (typingEl) {
-      typingEl.outerHTML = `
-        <div class="bot-row">
-          <div class="bot-avatar">t<span class="logo-dot" aria-hidden="true"></span></div>
-          ${articleHtml}
-        </div>
-      `;
     }
   }
 

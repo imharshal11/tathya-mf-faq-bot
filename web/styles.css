@@ -77,6 +77,10 @@ a:hover { color: #075985; }
     grid-template-columns: 280px minmax(0, 1fr) 320px;
   }
 
+  .workspace.is-chat .main {
+    align-items: stretch;
+  }
+
   .sources-panel {
     display: none !important;
   }
@@ -663,130 +667,21 @@ a:hover { color: #075985; }
      DESKTOP MAIN — CHAT STATE (copied from Docx/design/desktop-chat.html)
      ============================================================ */
 
-  /* Chat header bar */
-  .chat-header-bar {
-    height: 68px;
-    padding: 0 28px;
-    border-bottom: 1px solid #EEF2F6;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .chat-header-bar .fund-info-column {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .chat-header-bar .fund-name {
-    font-size: 16px;
-    font-weight: 700;
-    color: #0F172A;
-  }
-
-  .chat-header-bar .fund-plan {
-    font-size: 12px;
-    color: #64748B;
-  }
-
-  .verified-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 999px;
-    background: #DCFCE7;
-    color: #166534;
-    font-size: 12px;
-    font-weight: 500;
-  }
-
-  .verified-pill .dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #16A34A;
-  }
-
-  /* Messages wrapper */
-  .main .messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 24px 28px 0;
-    display: flex;
-    justify-content: center;
-  }
-
-  .main .messages > div {
-    width: 100%;
-    max-width: 700px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  /* User bubble */
-  .bubble-user {
-    align-self: flex-end;
-    max-width: 70%;
-    background: #0B2A5B;
-    color: #FFFFFF;
-    border-radius: 22px 22px 6px 22px;
-    padding: 12px 16px;
-    font-size: 15px;
-    line-height: 1.4;
-  }
-
-  /* Bot row */
-  .bot-row {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-  }
-
-  .bot-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 10px;
-    background: #0B2A5B;
-    color: #FFFFFF;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Poppins', sans-serif;
-    font-weight: 700;
-    font-size: 19px;
-    line-height: 1;
-    position: relative;
-    flex-shrink: 0;
-  }
-
-  .bot-avatar .logo-dot {
-    right: 6px;
-    top: 6px;
-    width: 5px;
-    height: 5px;
-  }
+  /* Chat structure is now defined in the global section above */
 
   .answer-article {
-    flex-grow: 1;
+    flex: 1;
     background: #F6F9FD;
     border-radius: 6px 22px 22px 22px;
     padding: 18px 20px;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    height: auto;
   }
 
   .answer-header {
-    align-self: flex-start;
-    font-size: 12px;
-    font-weight: 500;
-    color: #0B2A5B;
-    background: #DBEEFD;
-    border-radius: 999px;
-    padding: 5px 10px;
+    display: none; /* Desktop answer card has NO fund tag pill on ≥1024px */
   }
 
   .answer-big-figure {
@@ -866,99 +761,6 @@ a:hover { color: #075985; }
   }
 
   .fund-manager-chip .since {
-    font-size: 12px;
-    color: #64748B;
-  }
-
-  /* Refusal answer (advice questions) */
-  .refusal-article {
-    background: #FFF4E5;
-    border-radius: 6px 22px 22px 22px;
-    padding: 14px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .refusal-title {
-    font-size: 15px;
-    font-weight: 700;
-    color: #7C2D12;
-  }
-
-  .refusal-body {
-    font-size: 14px;
-    line-height: 1.5;
-    color: #7C2D12;
-  }
-
-  .refusal-link {
-    font-size: 13px;
-    font-weight: 500;
-    color: #9A3412;
-    text-decoration: underline;
-  }
-
-  /* Composer area (chat) */
-  .chat-composer {
-    padding: 14px 28px 10px;
-    display: flex;
-    justify-content: center;
-  }
-
-  .chat-composer-form {
-    width: 100%;
-    max-width: 700px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #FFFFFF;
-    border: 1px solid #D5DDE8;
-    border-radius: 999px;
-    padding: 6px 6px 6px 22px;
-    box-shadow: 0 10px 30px rgba(11, 42, 91, 0.08);
-  }
-
-  .chat-composer-form input {
-    flex-grow: 1;
-    min-width: 0;
-    border: none;
-    outline: none;
-    background: transparent;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 15px;
-    color: #0F172A;
-  }
-
-  .chat-composer-form input::placeholder {
-    color: #64748B;
-  }
-
-  .chat-send-btn {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: #0B2A5B;
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    padding: 0;
-    flex-shrink: 0;
-  }
-
-  .chat-send-btn .icon {
-    width: 20px;
-    height: 20px;
-    stroke: #FFFFFF;
-    stroke-width: 2;
-  }
-
-  /* Chat disclaimer */
-  .chat-disclaimer {
-    margin: 0 0 16px;
-    text-align: center;
     font-size: 12px;
     color: #64748B;
   }
