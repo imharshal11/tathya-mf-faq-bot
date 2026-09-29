@@ -18,7 +18,7 @@ from src.ingest import load_env, rebuild_index
 from src.retrieve import retrieve_chunks, retrieve_all_funds_fact, is_all_funds_query, get_fact_heading, ALL_FUNDS, detect_scheme
 from src.generate import generate_answer, extract_answer
 from src.guardrails import check_guardrails, GuardrailResult
-from src.common import get_collection, COLLECTION_NAME, CORPUS_PATH, TOP_K, SCORE_THRESHOLD
+from src.common import get_collection, COLLECTION_NAME, CORPUS_PATH, TOP_K, SCORE_THRESHOLD, NOT_FOUND_OVERRIDE_THRESHOLD
 
 
 def format_date(date_str: str) -> str:
@@ -512,9 +512,9 @@ def post_chat(req: ChatRequest) -> ChatResponse:
 
     # Handle Groq response
     if answer.strip() == "NOT_FOUND":
-        # Safety net: if top match score >= 0.70, use extractive fallback
+        # Safety net: if top match score >= NOT_FOUND_OVERRIDE_THRESHOLD, use extractive fallback
         top_score = scores[0] if scores else 0
-        if top_score >= 0.70:
+        if top_score >= NOT_FOUND_OVERRIDE_THRESHOLD:
             fallback_answer = extract_answer(chunks[0]["text"], req.question)
             fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
             top_chunk = chunks[0]

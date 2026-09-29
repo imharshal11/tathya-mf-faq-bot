@@ -64,6 +64,7 @@ ADVISORY_KEYWORDS = [
     "can i invest",
     "should i buy",
     "should i invest",
+    "should i start",
     "is it worth",
     "worth buying",
     "good time to invest",
@@ -185,13 +186,24 @@ def check_advisory(text: str) -> bool:
 
 def check_advisory_keywords(text: str) -> bool:
     """Check for advisory keywords (whole-word, case-insensitive).
-    Exception: if question also contains 'how', 'sip', 'lump sum', 'minimum', or 'via', do NOT trigger."""
+    Exception: if question is a factual how-to (contains 'how' as in 'how can i', 'how to', 'how do i')
+    combined with 'sip', 'lump sum', 'minimum', or 'via', do NOT trigger."""
     text_lower = text.lower()
     
-    # Check for exception keywords first
-    for exc in ADVISORY_EXCEPTION_KEYWORDS:
-        if re.search(rf"\b{re.escape(exc)}\b", text_lower):
-            return False
+    # Check for how-to exception: question must be a genuine how-to question
+    # (contains "how" as in "how can i", "how to", "how do i") AND one of the other exception keywords
+    how_to_patterns = [
+        r"\bhow\s+can\s+i\b",
+        r"\bhow\s+to\b",
+        r"\bhow\s+do\s+i\b",
+        r"^how\b",
+    ]
+    is_how_to = any(re.search(pattern, text_lower) for pattern in how_to_patterns)
+    
+    if is_how_to:
+        for exc in ["sip", "lump sum", "minimum", "via"]:
+            if re.search(rf"\b{re.escape(exc)}\b", text_lower):
+                return False
     
     # Check advisory keywords
     for keyword in ADVISORY_KEYWORDS:
@@ -386,17 +398,7 @@ def check_clarify_needed(text: str, scheme_name: str | None) -> bool:
 
 def check_guardrails(question: str, explicit_scheme: str | None = None) -> GuardrailResult:
     """Run all guardrails in order. Returns GuardrailResult."""
-    # 1. Identity/Help check (BEFORE retrieval and before any AI check)
-    if check_identity(question):
-        return GuardrailResult(
-            triggered=True,
-            type="greeting",
-            message="Hello! I can answer factual questions about 5 HDFC Mutual Fund schemes (Direct Plan - Growth). For example: 'What is the expense ratio of HDFC Large Cap Fund?' or 'What is the lock-in period of HDFC ELSS Tax Saver Fund?'",
-            source_url="",
-            fetched_date="",
-        )
-
-    # 2. PII check
+    # 1. PII check
     pii_found, pii_type = check_pii(question)
     if pii_found:
         return GuardrailResult(
@@ -407,7 +409,37 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
             fetched_date=TODAY_DATE,
         )
 
-    # 3. Advisory keywords check (new specific keywords)
+    # 2. Identity/Help check (BEFORE retrieval and before any AI check)
+    if check_identity(question):
+        return GuardrailResult(
+            triggered=True,
+            type="greeting",
+            message="Hello! I can answer factual questions about 5 HDFC Mutual Fund schemes (Direct Plan - Growth). For example: 'What is the expense ratio of HDFC Large Cap Fund?' or 'What is the lock-in period of HDFC ELSS Tax Saver Fund?'",
+            source_url="",
+            fetched_date="",
+        )
+
+    # 3. Greeting check
+    if check_greeting(question):
+        return GuardrailResult(
+            triggered=True,
+            type="greeting",
+            message="Hello! I can answer factual questions about 5 HDFC Mutual Fund schemes (Direct Plan - Growth). For example: 'What is the expense ratio of HDFC Large Cap Fund?' or 'What is the lock-in period of HDFC ELSS Tax Saver Fund?'",
+            source_url="",
+            fetched_date="",
+        )
+
+    # 4. Thanks check
+    if check_thanks(question):
+        return GuardrailResult(
+            triggered=True,
+            type="thanks",
+            message="You're welcome! Ask me anything else about the 5 HDFC funds.",
+            source_url="",
+            fetched_date="",
+        )
+
+    # 5. Advisory keywords check (new specific keywords)
     if check_advisory_keywords(question):
         return GuardrailResult(
             triggered=True,
@@ -481,27 +513,7 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
             fetched_date="",
         )
 
-    # 9. Greeting check
-    if check_greeting(question):
-        return GuardrailResult(
-            triggered=True,
-            type="greeting",
-            message="Hello! I can answer factual questions about 5 HDFC Mutual Fund schemes (Direct Plan - Growth). For example: 'What is the expense ratio of HDFC Large Cap Fund?' or 'What is the lock-in period of HDFC ELSS Tax Saver Fund?'",
-            source_url="",
-            fetched_date="",
-        )
-
-    # 10. Thanks check
-    if check_thanks(question):
-        return GuardrailResult(
-            triggered=True,
-            type="thanks",
-            message="You're welcome! Ask me anything else about the 5 HDFC funds.",
-            source_url="",
-            fetched_date="",
-        )
-
-    # 11. Clarify check (no scheme named but asks scheme-level fact)
+    # 9. Clarify check (no scheme named but asks scheme-level fact)
     from src.retrieve import detect_scheme
     scheme_name = explicit_scheme or detect_scheme(question)
     if check_clarify_needed(question, scheme_name):

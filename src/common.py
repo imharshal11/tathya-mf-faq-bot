@@ -21,6 +21,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b").strip()
 TOP_K = int(os.getenv("TOP_K", "6"))
 SCORE_THRESHOLD = float(os.getenv("SCORE_THRESHOLD", "0.55"))
+NOT_FOUND_OVERRIDE_THRESHOLD = float(os.getenv("NOT_FOUND_OVERRIDE_THRESHOLD", "0.80"))
 
 
 _embedding_fn: ONNXMiniLM_L6_V2 | None = None
