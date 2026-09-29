@@ -659,6 +659,11 @@ a:hover { color: #075985; }
   .fund-chip.small-cap { background: #FCEFCB; }
   .fund-chip.balanced { background: #E2E8F0; }
 
+  .fund-chip.active {
+    outline: 2px solid #0B2A5B;
+    outline-offset: 2px;
+  }
+
   /* Disclaimer — no icon, plain p */
   .disclaimer-text {
     margin: 0;

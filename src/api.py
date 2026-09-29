@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -18,6 +19,15 @@ from src.retrieve import retrieve_chunks, retrieve_all_funds_fact, is_all_funds_
 from src.generate import generate_answer, extract_answer
 from src.guardrails import check_guardrails, GuardrailResult
 from src.common import get_collection, COLLECTION_NAME, CORPUS_PATH
+
+
+def format_date(date_str: str) -> str:
+    """Format ISO date (YYYY-MM-DD) to '27 Sep 2026' format."""
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+        return dt.strftime("%d %b %Y")
+    except Exception:
+        return date_str
 
 
 # Safe defaults (env vars override)
@@ -98,6 +108,7 @@ class FundResponse(BaseModel):
     full_name: str
     display_name: str
     short_name: str
+    scheme_name: str
     category: str
     source_url: str
     fetched_date: str
@@ -264,6 +275,7 @@ def _parse_fund_file(filepath: Path) -> FundResponse:
         full_name=full_name,
         display_name=display_name,
         short_name=short_name,
+        scheme_name=scheme_name,
         category=category,
         source_url=source_url,
         fetched_date=formatted_date,
@@ -314,7 +326,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
     if guardrail_result.triggered:
         # For guardrails that don't need a link/date, use empty strings
         source_url = guardrail_result.source_url if guardrail_result.source_url else ""
-        fetched_date = guardrail_result.fetched_date if guardrail_result.fetched_date else ""
+        fetched_date = format_date(guardrail_result.fetched_date) if guardrail_result.fetched_date else ""
         return ChatResponse(
             answer=guardrail_result.message,
             source_url=source_url,
@@ -425,7 +437,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
             
             # Use first fund's source URL
             source_url = chunks[0]["source_url"] if chunks else ""
-            fetched_date = chunks[0]["fetched_date"] if chunks else ""
+            fetched_date = format_date(chunks[0]["fetched_date"]) if chunks else ""
             return ChatResponse(
                 answer=answer,
                 source_url=source_url,
@@ -466,7 +478,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
         return ChatResponse(
             answer=fallback_answer,
             source_url=top_chunk["source_url"],
-            fetched_date=top_chunk["fetched_date"],
+            fetched_date=format_date(top_chunk["fetched_date"]),
             debug={
                 "threshold_passed": True,
                 "matches": [{"chunk_id": c["chunk_id"], "score": round(s, 4)} for c, s in zip(chunks, scores)],
@@ -485,7 +497,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
             return ChatResponse(
                 answer=fallback_answer,
                 source_url=top_chunk["source_url"],
-                fetched_date=top_chunk["fetched_date"],
+                fetched_date=format_date(top_chunk["fetched_date"]),
                 debug={
                     "threshold_passed": True,
                     "matches": [{"chunk_id": c["chunk_id"], "score": round(s, 4)} for c, s in zip(chunks, scores)],
@@ -511,7 +523,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
     return ChatResponse(
         answer=answer,
         source_url=top_chunk["source_url"],
-        fetched_date=top_chunk["fetched_date"],
+        fetched_date=format_date(top_chunk["fetched_date"]),
         debug={
             "threshold_passed": True,
             "matches": [{"chunk_id": c["chunk_id"], "score": round(s, 4)} for c, s in zip(chunks, scores)],

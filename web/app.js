@@ -92,15 +92,17 @@
   }
 
   function handleFundSelect(fundId) {
-    // Update active state in sidebar
-    els.fundItems.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.fund === fundId);
-    });
-    state.activeFund = fundId;
+    // If same fund is already selected, unselect (back to "All 5 funds")
+    if (state.activeFund === fundId) {
+      state.activeFund = null;
+    } else {
+      state.activeFund = fundId;
+    }
+    syncFundSelectionUI();
 
     // If in chat mode, fetch and populate sources panel for the selected fund
-    if (state.isChat) {
-      fetchFundFacts(fundId);
+    if (state.isChat && state.activeFund) {
+      fetchFundFacts(state.activeFund);
     }
   }
 
@@ -197,11 +199,11 @@
           </div>
           <div class="funds-covered-row">
             <span class="funds-covered-label">Funds covered</span>
-            <span class="fund-chip large-cap">Large Cap</span>
-            <span class="fund-chip flexi-cap">Flexi Cap</span>
-            <span class="fund-chip elss">ELSS Tax Saver</span>
-            <span class="fund-chip small-cap">Small Cap</span>
-            <span class="fund-chip balanced">Balanced Advantage</span>
+            <button class="fund-chip large-cap" type="button" data-fund="large-cap">Large Cap</button>
+            <button class="fund-chip flexi-cap" type="button" data-fund="flexi-cap">Flexi Cap</button>
+            <button class="fund-chip elss" type="button" data-fund="elss">ELSS Tax Saver</button>
+            <button class="fund-chip small-cap" type="button" data-fund="small-cap">Small Cap</button>
+            <button class="fund-chip balanced" type="button" data-fund="balanced">Balanced Advantage</button>
           </div>
           <p class="disclaimer-text">Mutual Fund investments are subject to market risks, read all scheme related documents carefully. Tathya shares facts from public Groww pages (as of 27 Sep 2026) for information only. It is not investment advice or a recommendation to buy or sell any fund.</p>
         </div>
@@ -225,25 +227,24 @@
         });
       }
 
-      // Topic chips
+      // Fund chips (pills) - click to select/unselect fund
+      document.querySelectorAll('.fund-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const fundId = chip.dataset.fund;
+          toggleFundSelection(fundId);
+        });
+      });
+
+      // Topic chips - build question from selected fund
       document.querySelectorAll('.topic-chip').forEach(chip => {
         chip.addEventListener('click', () => {
           const topic = chip.dataset.topic;
-          const templates = {
-            'expense-ratio': 'What is the expense ratio of HDFC Large Cap Fund?',
-            'exit-load': 'What is the exit load of HDFC Small Cap Fund?',
-            'min-sip': 'What is the minimum SIP amount for HDFC Flexi Cap Fund?',
-            'lock-in': 'What is the lock-in period for HDFC ELSS Tax Saver Fund?',
-            'riskometer': 'What is the riskometer rating of HDFC Balanced Advantage Fund?',
-            'benchmark': 'What is the benchmark for HDFC Large Cap Fund?',
-            'fund-managers': 'Who manages HDFC Flexi Cap Fund?'
-          };
-          if (els.textarea && templates[topic]) {
-            els.textarea.value = templates[topic];
-            els.textarea.focus();
-          }
+          insertTopicQuestion(topic);
         });
       });
+
+      // Sync UI with current activeFund state
+      syncFundSelectionUI();
     }
 
     // Mobile home (Phase 5 will flesh this out)
@@ -326,6 +327,70 @@
     }
   }
 
+  // Fund selection helpers
+  function getFundDisplayName(shortName) {
+    const names = {
+      'large-cap': 'HDFC Large Cap Fund',
+      'flexi-cap': 'HDFC Flexi Cap Fund',
+      'elss': 'HDFC ELSS Tax Saver Fund',
+      'small-cap': 'HDFC Small Cap Fund',
+      'balanced': 'HDFC Balanced Advantage Fund'
+    };
+    return names[shortName] || '';
+  }
+
+  function toggleFundSelection(fundId) {
+    // If same fund is already selected, unselect (back to "All 5 funds")
+    if (state.activeFund === fundId) {
+      state.activeFund = null;
+    } else {
+      state.activeFund = fundId;
+    }
+    syncFundSelectionUI();
+  }
+
+  function syncFundSelectionUI() {
+    // Sync fund pills (home)
+    document.querySelectorAll('.fund-chip').forEach(chip => {
+      chip.classList.toggle('active', chip.dataset.fund === state.activeFund);
+    });
+
+    // Sync dropdown (home)
+    if (els.fundSelect) {
+      els.fundSelect.value = state.activeFund || 'all';
+    }
+
+    // Sync sidebar fund items
+    els.fundItems.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.fund === state.activeFund);
+    });
+  }
+
+  function insertTopicQuestion(topic) {
+    if (!els.textarea) return;
+
+    const fundDisplayName = state.activeFund ? getFundDisplayName(state.activeFund) : '';
+    const templates = {
+      'expense-ratio': fundDisplayName ? `What is the expense ratio of ${fundDisplayName}?` : 'What is the expense ratio of ',
+      'exit-load': fundDisplayName ? `What is the exit load of ${fundDisplayName}?` : 'What is the exit load of ',
+      'min-sip': fundDisplayName ? `What is the minimum SIP amount for ${fundDisplayName}?` : 'What is the minimum SIP amount for ',
+      'lock-in': fundDisplayName ? `What is the lock-in period for ${fundDisplayName}?` : 'What is the lock-in period for ',
+      'riskometer': fundDisplayName ? `What is the riskometer rating of ${fundDisplayName}?` : 'What is the riskometer rating of ',
+      'benchmark': fundDisplayName ? `What is the benchmark for ${fundDisplayName}?` : 'What is the benchmark for ',
+      'fund-managers': fundDisplayName ? `Who manages ${fundDisplayName}?` : 'Who manages '
+    };
+
+    const question = templates[topic];
+    if (question) {
+      els.textarea.value = question;
+      els.textarea.focus();
+      // If no fund selected, position cursor at end so user can type fund name
+      if (!fundDisplayName) {
+        els.textarea.setSelectionRange(question.length, question.length);
+      }
+    }
+  }
+
   function handleSend() {
     const question = els.textarea?.value?.trim();
     if (!question) return;
@@ -381,7 +446,7 @@
     if (!apiScheme && state.activeFund) {
       const activeFundObj = state.fundsList.find(f => f.short_name === state.activeFund);
       if (activeFundObj) {
-        apiScheme = activeFundObj.full_name;
+        apiScheme = activeFundObj.scheme_name;
       }
     }
 
@@ -583,21 +648,21 @@
           `;
         }
 
-        // Fund manager chips if applicable
+        // Fund manager chips - ONLY for manager-related questions
         let managerChipsHtml = '';
-        if (data.answer.includes('managed by') || data.answer.includes('manages')) {
-          managerChipsHtml = `
-            <div class="fund-manager-chips">
+        const question = (data.question || '').toLowerCase();
+        const isManagerQuestion = question.includes('manage') || question.includes('manager') || question.includes('who runs');
+        if (isManagerQuestion) {
+          const fundFromAnswer = findFundBySourceUrl(data.source_url);
+          if (fundFromAnswer && fundFromAnswer.fund_managers && fundFromAnswer.fund_managers.length > 0) {
+            const chips = fundFromAnswer.fund_managers.map(m => `
               <span class="fund-manager-chip">
-                <span class="name">Rahul Baijal</span>
-                <span class="since">Since Jul 2022</span>
+                <span class="name">${escapeHtml(m.name)}</span>
+                <span class="since">${escapeHtml('Since ' + m.since)}</span>
               </span>
-              <span class="fund-manager-chip">
-                <span class="name">Dhruv Muchhal</span>
-                <span class="since">Since Jun 2023</span>
-              </span>
-            </div>
-          `;
+            `).join('');
+            managerChipsHtml = `<div class="fund-manager-chips">${chips}</div>`;
+          }
         }
 
         articleHtml = `
@@ -715,7 +780,7 @@
 
   function getSchemeName(shortName) {
     const fund = state.fundsList.find(f => f.short_name === shortName);
-    return fund ? fund.full_name : null;
+    return fund ? fund.scheme_name : null;
   }
 
   function escapeHtml(text) {
