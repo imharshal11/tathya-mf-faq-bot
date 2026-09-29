@@ -64,6 +64,17 @@
     state.isChat = false;
     state.activeFund = null;
     els.workspace?.classList.remove('is-chat');
+
+    // Restore main panel to HOME structure (just messages div)
+    const mainEl = document.querySelector('.main');
+    if (mainEl) {
+      mainEl.innerHTML = '<div class="messages" id="messages"></div>';
+      els.messages = document.querySelector('#messages');
+    }
+
+    // Clear active fund in sidebar
+    els.fundItems.forEach(btn => btn.classList.remove('active'));
+
     renderHome();
   }
 
@@ -309,39 +320,168 @@
     state.isChat = true;
     els.workspace?.classList.add('is-chat');
 
-    // Render chat view (Phase 3 will implement fully)
+    // Render chat view
     renderChatView(question, fund);
   }
 
   function renderChatView(question, fund) {
-    // This will be fully implemented in Phase 3
-    // For now, just show a placeholder
-    if (els.messages) {
-      els.messages.innerHTML = `
-        <div class="bubble-user">
-          <div class="bubble-user-content">${escapeHtml(question)}</div>
+    const mainEl = document.querySelector('.main');
+    if (!mainEl) return;
+
+    // Determine fund display name
+    const fundNames = {
+      'large-cap': 'HDFC Large Cap Fund',
+      'flexi-cap': 'HDFC Flexi Cap Fund',
+      'elss': 'HDFC ELSS Tax Saver Fund',
+      'small-cap': 'HDFC Small Cap Fund',
+      'balanced': 'HDFC Balanced Advantage Fund'
+    };
+    const fundDisplay = fundNames[fund] || fundNames['large-cap'];
+
+    // Render full chat structure
+    mainEl.innerHTML = `
+      <div class="chat-header-bar">
+        <div class="fund-info-column">
+          <span class="fund-name">${escapeHtml(fundDisplay)}</span>
+          <span class="fund-plan">Direct Plan · Growth</span>
         </div>
+        <span class="verified-pill"><span class="dot" aria-hidden="true"></span><span>Verified sources</span></span>
+      </div>
+      <div class="messages" id="messages" role="log" aria-live="polite" aria-label="Conversation">
+        <div class="bubble-user">${escapeHtml(question)}</div>
         <div class="typing-indicator">Tathya is typing…</div>
-      `;
+      </div>
+      <div class="chat-composer">
+        <form class="chat-composer-form" id="chat-composer-form" autocomplete="off">
+          <label for="q-deskchat" class="sr-only">Ask a follow-up</label>
+          <input id="q-deskchat" type="text" placeholder="Ask a question about a fund…" aria-label="Ask a question about a fund" required>
+          <button type="submit" class="chat-send-btn" aria-label="Send">
+            <svg class="icon arrow-up" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"></path><path d="M6 11l6-6 6 6"></path></svg>
+          </button>
+        </form>
+      </div>
+      <p class="chat-disclaimer">Mutual fund investments carry market risk. Facts only, not advice.</p>
+    `;
+
+    // Update messages reference
+    els.messages = document.querySelector('#messages');
+
+    // Bind chat composer events
+    const chatForm = document.querySelector('#chat-composer-form');
+    const chatInput = document.querySelector('#q-deskchat');
+    if (chatForm && chatInput) {
+      chatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const q = chatInput.value.trim();
+        if (q) {
+          chatInput.value = '';
+          sendQuestion(q, state.activeFund || 'all');
+        }
+      });
     }
 
-    // Simulate API call
+    // Simulate API call - replace with actual /chat POST in Phase 4
     setTimeout(() => {
-      // This will be replaced with actual API call in Phase 3
       const mockAnswer = {
-        answer: 'The expense ratio of HDFC Large Cap Fund is 1.03%.',
+        answer: 'The expense ratio of HDFC Large Cap Fund (Direct Growth) is 1.03%.',
         title: 'Expense Ratio',
-        source_url: 'https://groww.in/mutual-funds/hdfc-large-cap-fund',
+        source_url: 'https://groww.in/mutual-funds/hdfc-large-cap-fund-direct-growth',
         fetched_date: '27 Sep 2026',
-        debug: { guardrail: 'returns' }
+        debug: { guardrail: 'returns' },
+        fund: fund,
+        fund_display: fundDisplay
       };
       renderAnswer(mockAnswer);
     }, 1500);
   }
 
   function renderAnswer(data) {
-    // Will be implemented in Phase 3
-    console.log('Answer received:', data);
+    if (!els.messages) return;
+
+    const isRefusal = data.debug?.guardrail === 'advisory' || data.debug?.guardrail === 'out_of_scope';
+    const isSingleNumber = data.title && (data.answer.includes('%') || data.answer.match(/^[\d.]+%?$/));
+
+    // Determine fund display name
+    const fundNames = {
+      'large-cap': 'HDFC Large Cap Fund',
+      'flexi-cap': 'HDFC Flexi Cap Fund',
+      'elss': 'HDFC ELSS Tax Saver Fund',
+      'small-cap': 'HDFC Small Cap Fund',
+      'balanced': 'HDFC Balanced Advantage Fund'
+    };
+    const fundDisplay = fundNames[data.fund] || data.fund_display || 'HDFC Large Cap Fund';
+
+    // Build answer article
+    let articleHtml = '';
+
+    if (isRefusal) {
+      articleHtml = `
+        <article class="refusal-article">
+          <div class="refusal-title">I can't give investment advice.</div>
+          <div class="refusal-body">I share facts only. To learn more about investing, visit AMFI's Mutual Funds Sahi Hai.</div>
+          <a class="refusal-link" href="https://www.mutualfundssahihai.com/en" target="_blank" rel="noopener">Learn more</a>
+        </article>
+      `;
+    } else {
+      // Big number row for single number/percent answers
+      let bigNumberHtml = '';
+      if (isSingleNumber && data.title) {
+        const valueMatch = data.answer.match(/([\d.]+%)/);
+        const value = valueMatch ? valueMatch[1] : data.title;
+        const label = data.title.toLowerCase().replace('ratio', 'ratio');
+        bigNumberHtml = `
+          <div class="answer-big-figure">
+            <span class="value">${escapeHtml(value)}</span>
+            <span class="unit">${escapeHtml(label)}</span>
+          </div>
+        `;
+      }
+
+      // Fund manager chips if applicable
+      let managerChipsHtml = '';
+      if (data.answer.includes('managed by') || data.answer.includes('manages')) {
+        // This would be populated from structured data in real implementation
+        managerChipsHtml = `
+          <div class="fund-manager-chips">
+            <span class="fund-manager-chip">
+              <span class="name">Rahul Baijal</span>
+              <span class="since">Since Jul 2022</span>
+            </span>
+            <span class="fund-manager-chip">
+              <span class="name">Dhruv Muchhal</span>
+              <span class="since">Since Jun 2023</span>
+            </span>
+          </div>
+        `;
+      }
+
+      articleHtml = `
+        <article class="answer-article">
+          <span class="answer-header">${escapeHtml(fundDisplay)} · Direct Plan · Growth</span>
+          ${bigNumberHtml}
+          <p class="answer-body">${escapeHtml(data.answer)}</p>
+          ${managerChipsHtml}
+          <div class="answer-footer">
+            <a class="source-link-row" href="${escapeHtml(data.source_url || '#')}" target="_blank" rel="noopener">
+              <svg class="icon external" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0369A1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"></path><path d="M20 4l-9 9"></path><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"></path></svg>
+              <span>Source: groww.in</span>
+            </a>
+            <span class="source-date">Updated ${escapeHtml(data.fetched_date || '27 Sep 2026')}</span>
+          </div>
+        </article>
+      `;
+    }
+
+    // Replace typing indicator with bot response
+    const typingEl = els.messages.querySelector('.typing-indicator');
+    if (typingEl) {
+      typingEl.outerHTML = `
+        <div class="bot-row">
+          <div class="bot-avatar">t<span class="logo-dot" aria-hidden="true"></span></div>
+          ${articleHtml}
+        </div>
+      `;
+    }
   }
 
   function escapeHtml(text) {
