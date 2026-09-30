@@ -11,7 +11,17 @@
     activeFund: null,
     recentQuestions: [],
     typing: false,
-    fundsList: []
+    fundsList: [],
+    mobileView: 'home'
+  };
+
+  // Mobile home fact line formats (values come from GET /funds)
+  const MOBILE_FUND_SHORT = {
+    'large-cap': 'Large Cap',
+    'flexi-cap': 'Flexi Cap',
+    'elss': 'ELSS',
+    'small-cap': 'Small Cap',
+    'balanced': 'Balanced Advantage'
   };
 
   // DOM Elements
@@ -68,8 +78,127 @@
       btn.addEventListener('click', () => handleFundSelect(btn.dataset.fund));
     });
 
+    // Mobile home: fund tiles open the mobile chat with that fund selected
+    document.querySelectorAll('.fund-card').forEach(card => {
+      card.addEventListener('click', () => openMobileChat(card.dataset.fund));
+    });
+
+    // Mobile home: "Start new chat"
+    const mobileStartBtn = document.querySelector('.start-chat-btn');
+    if (mobileStartBtn) {
+      mobileStartBtn.addEventListener('click', startMobileChat);
+    }
+
+    // Mobile bottom nav (Home / Chat / Funds / About)
+    document.querySelectorAll('.mobile-nav-item').forEach(item => {
+      item.addEventListener('click', () => handleMobileNav(item.dataset.view));
+    });
+
+    // Header info button — same action as the "About" nav item
+    const mobileInfoBtn = document.querySelector('.mobile-info-btn');
+    if (mobileInfoBtn) {
+      mobileInfoBtn.addEventListener('click', handleMobileAbout);
+    }
+
     // Window resize
     window.addEventListener('resize', debounce(detectViewport, 100));
+  }
+
+  // ---------- Mobile (Phase 5) ----------
+
+  function mobileHomeEl() {
+    return els.mobileMain ? els.mobileMain.querySelector('.mobile-home') : null;
+  }
+
+  function mobileChatEl() {
+    return els.mobileMain ? els.mobileMain.querySelector('.mobile-chat') : null;
+  }
+
+  function setMobileView(view) {
+    state.mobileView = view;
+
+    const home = mobileHomeEl();
+    const chat = mobileChatEl();
+    if (home) home.style.display = view === 'home' ? '' : 'none';
+    if (chat) chat.hidden = view !== 'chat';
+
+    document.querySelectorAll('.mobile-nav-item').forEach(item => {
+      const active = item.dataset.view === view;
+      item.classList.toggle('active', active);
+      if (active) {
+        item.setAttribute('aria-current', 'page');
+      } else {
+        item.removeAttribute('aria-current');
+      }
+    });
+
+    if (els.mobileMain) els.mobileMain.scrollTop = 0;
+  }
+
+  function openMobileChat(fundId) {
+    if (fundId) state.activeFund = fundId;
+    const chat = mobileChatEl();
+    if (chat) chat.dataset.fund = state.activeFund || 'all';
+    setMobileView('chat');
+  }
+
+  function startMobileChat() {
+    state.activeFund = null;
+    openMobileChat(null);
+  }
+
+  function handleMobileNav(view) {
+    switch (view) {
+      case 'home':
+        setMobileView('home');
+        break;
+      case 'chat':
+        openMobileChat(state.activeFund);
+        break;
+      case 'funds':
+        setMobileView('home');
+        document.querySelector('.funds-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        break;
+      case 'about':
+        handleMobileAbout();
+        break;
+      default:
+        break;
+    }
+  }
+
+  function handleMobileAbout() {
+    const target = document.querySelector('.credit-links') || document.querySelector('.disclaimer-card');
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function mobileFundFact(fund) {
+    if (!fund) return '';
+    switch (fund.short_name) {
+      case 'Large Cap':
+      case 'Flexi Cap':
+        return fund.expense_ratio ? `Expense ratio: ${fund.expense_ratio}` : '';
+      case 'ELSS':
+        if (fund.lock_in) return `${fund.lock_in.replace(/\s+years?$/i, '-year')} lock-in`;
+        return fund.expense_ratio ? `Expense ratio: ${fund.expense_ratio}` : '';
+      case 'Small Cap':
+        return fund.exit_load ? `Exit load: ${fund.exit_load}` : '';
+      case 'Balanced Advantage':
+        return fund.expense_ratio ? `Hybrid fund · Expense ratio: ${fund.expense_ratio}` : 'Hybrid fund';
+      default:
+        return '';
+    }
+  }
+
+  function renderMobileFundFacts() {
+    if (!els.mobileMain) return;
+    els.mobileMain.querySelectorAll('.fund-card').forEach(card => {
+      const shortName = MOBILE_FUND_SHORT[card.dataset.fund];
+      const fund = shortName ? state.fundsList.find(f => f.short_name === shortName) : null;
+      const fact = mobileFundFact(fund);
+      const subtitle = card.querySelector('.fund-card-subtitle');
+      if (fact && subtitle) subtitle.textContent = fact;
+    });
   }
 
   function handleNewChat() {
@@ -247,84 +376,8 @@
       syncFundSelectionUI();
     }
 
-    // Mobile home (Phase 5 will flesh this out)
-    if (els.mobileMain) {
-      els.mobileMain.innerHTML = `
-        <div class="mobile-home">
-          <div class="home-greeting">
-            <h1 class="hi">Hi there!</h1>
-            <p class="ask">Ask me about 5 HDFC mutual funds. Every answer shows its source.</p>
-          </div>
-          <button class="start-chat-btn" type="button">
-            Start new chat
-            <span class="icon-circle">
-              <svg class="icon arrow-right" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
-            </span>
-          </button>
-          <div class="trust-pill">
-            <svg class="icon shield" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#075985" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"></path><path d="M9 12l2 2 4-4"></path></svg>
-            <span>Facts-only. No investment advice.</span>
-          </div>
-          <section class="funds-section">
-            <div class="funds-header">
-              <span class="funds-title">Funds covered</span>
-              <span class="funds-hint">Tap a fund to ask about it</span>
-            </div>
-            <div class="fund-grid">
-              <button class="fund-card large-cap" type="button" data-fund="large-cap">
-                <div class="fund-card-icon"><svg class="icon fund-large" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0B2A5B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19h16"></path><path d="M7 15V9"></path><path d="M12 15V5"></path><path d="M17 15v-4"></path></svg></div>
-                <div class="fund-card-text">
-                  <span class="fund-card-name">Large Cap</span>
-                  <span class="fund-card-subtitle">Expense ratio: 1.03%</span>
-                </div>
-              </button>
-              <button class="fund-card flexi-cap" type="button" data-fund="flexi-cap">
-                <div class="fund-card-icon"><svg class="icon fund-flexi" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0B2A5B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 0 1 16 0"></path><path d="M20 12a8 8 0 0 1-16 0"></path><path d="M9 12l2 2 4-4"></path></svg></div>
-                <div class="fund-card-text">
-                  <span class="fund-card-name">Flexi Cap</span>
-                  <span class="fund-card-subtitle">Expense ratio: 0.77%</span>
-                </div>
-              </button>
-              <button class="fund-card elss" type="button" data-fund="elss">
-                <div class="fund-card-icon"><svg class="icon fund-elss" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0B2A5B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></div>
-                <div class="fund-card-text">
-                  <span class="fund-card-name">ELSS Tax Saver</span>
-                  <span class="fund-card-subtitle">3-year lock-in</span>
-                </div>
-              </button>
-              <button class="fund-card small-cap" type="button" data-fund="small-cap">
-                <div class="fund-card-icon"><svg class="icon fund-small" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0B2A5B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l5-5 4 4 7-7"></path><path d="M15 9h5v5"></path></svg></div>
-                <div class="fund-card-text">
-                  <span class="fund-card-name">Small Cap</span>
-                  <span class="fund-card-subtitle">Exit load: 1% if sold within 1 year</span>
-                </div>
-              </button>
-              <button class="fund-card balanced wide" type="button" data-fund="balanced">
-                <div class="fund-card-icon balanced"><svg class="icon fund-baf" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0B2A5B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16"></path><path d="M5 8h14"></path><path d="M5 8l-2 6h4l-2-6z"></path><path d="M19 8l-2 6h4l-2-6z"></path></svg></div>
-                <div class="fund-card-text">
-                  <span class="fund-card-name">Balanced Advantage</span>
-                  <span class="fund-card-subtitle">Hybrid fund · Expense ratio: 0.78%</span>
-                </div>
-                <svg class="icon chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
-              </button>
-            </div>
-          </section>
-          <div class="disclaimer-card">
-            <svg class="icon info" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5"></path><path d="M12 8h.01"></path></svg>
-            <div class="text">Mutual Fund investments are subject to market risks, read all scheme related documents carefully. Tathya shares facts only, not investment advice.</div>
-          </div>
-          <div class="credit-links">
-            <span>Built by <strong>Harshal S</strong></span>
-            <a href="https://www.linkedin.com/in/imharshal11" target="_blank" rel="noopener" aria-label="Harshal S on LinkedIn">
-              <svg class="icon linkedin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0A66C2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
-            </a>
-            <a href="https://github.com/imharshal11" target="_blank" rel="noopener" aria-label="Harshal S on GitHub">
-              <svg class="icon github" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"></path></svg>
-            </a>
-          </div>
-        </div>
-      `;
-    }
+    // Mobile home markup is static in index.html; refresh fact lines from GET /funds
+    renderMobileFundFacts();
   }
 
   // Fund selection helpers
