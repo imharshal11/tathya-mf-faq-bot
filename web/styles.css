@@ -1990,6 +1990,473 @@ a:hover { color: #075985; }
     stroke: #0F172A;
   }
 
+  /* ============================================================
+     PHASE 6 — MOBILE CHAT (copied from Docx/design/mobile-chat.html)
+     ============================================================ */
+
+  /* Chat view takes over the whole shell: home header and bottom nav hidden */
+  .mobile-shell:has(.mobile-chat:not([hidden])) .mobile-header { display: none; }
+  .mobile-shell:has(.mobile-chat:not([hidden])) .mobile-bottom-nav { display: none; }
+
+  .mobile-main:has(.mobile-chat:not([hidden])) {
+    padding: 0;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  .mobile-chat:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+  }
+
+  /* 6.1 Chat header — back, wordmark, new chat */
+  .mobile-chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 16px 10px;
+    flex-shrink: 0;
+  }
+
+  .mobile-chat-header .chat-back-btn,
+  .mobile-chat-header .chat-new-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    border: 1px solid #E3E8EF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .mobile-chat-header .chat-back-btn .icon {
+    width: 20px;
+    height: 20px;
+    stroke: #0F172A;
+    stroke-width: 2;
+  }
+
+  .mobile-chat-header .chat-new-btn .icon {
+    width: 19px;
+    height: 19px;
+    stroke: #0F172A;
+    stroke-width: 2;
+  }
+
+  .mobile-chat-header .wordmark {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: -0.4px;
+    line-height: 1;
+  }
+
+  .mobile-chat-header .wordmark .n { color: #0B2A5B; }
+  .mobile-chat-header .wordmark .s { color: #0EA5E9; }
+
+  /* 6.2 Fund chip bar — horizontally scrollable, active chip navy */
+  .fund-chip-bar {
+    padding: 2px 16px 8px;
+    flex-shrink: 0;
+  }
+
+  .fund-chip-group {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: #FFFFFF;
+    border: 1px solid #E3E8EF;
+    border-radius: 999px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .fund-chip-group::-webkit-scrollbar { display: none; }
+
+  .fund-chip-bar .fund-chip {
+    flex-shrink: 0;
+    height: 36px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: #334155;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .fund-chip-bar .fund-chip[aria-pressed="true"],
+  .fund-chip-bar .fund-chip.active {
+    background: #0B2A5B;
+    color: #FFFFFF;
+  }
+
+  /* 6.3 Messages — the scrolling area */
+  .mobile-chat .messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 6px 16px 0;
+  }
+
+  .mobile-chat .messages-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    flex-shrink: 0;
+  }
+
+  .mobile-chat .messages > .msg-user,
+  .mobile-chat .messages > .msg-bot,
+  .mobile-chat .messages-inner > .msg-user,
+  .mobile-chat .messages-inner > .msg-bot {
+    flex-shrink: 0;
+  }
+
+  /* User bubble with Copy / Ask again */
+  .mobile-chat .msg-user {
+    align-self: flex-end;
+    max-width: 84%;
+    background: #0B2A5B;
+    color: #FFFFFF;
+    border-radius: 22px 22px 6px 22px;
+    padding: 12px 14px;
+    font-size: 15px;
+    line-height: 1.4;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .mobile-chat .msg-user-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .mobile-chat .msg-user-action {
+    height: 28px;
+    padding: 0 10px;
+    border: none;
+    border-radius: 999px;
+    background: #1F4478;
+    color: #FFFFFF;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+  }
+
+  /* Bot row — avatar + article */
+  .mobile-chat .msg-bot {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .mobile-chat .msg-bot .avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: #0B2A5B;
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .mobile-chat .msg-bot .avatar .dot {
+    position: absolute;
+    right: 5px;
+    top: 5px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #0EA5E9;
+  }
+
+  .mobile-chat .typing-indicator {
+    align-self: flex-start;
+    font-size: 13px;
+    color: #64748B;
+    padding: 8px 14px;
+    background: #FFFFFF;
+    border: 1px solid #E3E8EF;
+    border-radius: 999px;
+  }
+
+  /* Answer card — fund tag, big number, sentence, source row, Copy/Share */
+  .mobile-chat .answer-card {
+    flex-grow: 1;
+    min-width: 0;
+    background: #FFFFFF;
+    border-radius: 6px 22px 22px 22px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 2px 10px rgba(11, 42, 91, 0.05);
+  }
+
+  .mobile-chat .answer-fund-tag {
+    align-self: flex-start;
+    margin: 0;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: #DBEEFD;
+    color: #0B2A5B;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .mobile-chat .answer-number-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .mobile-chat .answer-number {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 36px;
+    line-height: 1;
+    color: #0B2A5B;
+  }
+
+  .mobile-chat .answer-label {
+    font-size: 14px;
+    color: #475569;
+  }
+
+  .mobile-chat .answer-text {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #1E293B;
+  }
+
+  .mobile-chat .answer-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0F172A;
+  }
+
+  .mobile-chat .answer-source-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: #F6F8FB;
+    border-radius: 14px;
+    padding: 8px 10px;
+  }
+
+  .mobile-chat .source-link-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: #0369A1;
+    text-decoration: none;
+  }
+
+  .mobile-chat .source-link-row .icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  .mobile-chat .source-date {
+    font-size: 12px;
+    color: #64748B;
+  }
+
+  .mobile-chat .answer-actions {
+    display: flex;
+    gap: 14px;
+  }
+
+  .mobile-chat .answer-action {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 0;
+    background: transparent;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: #475569;
+    cursor: pointer;
+  }
+
+  .mobile-chat .answer-action .icon {
+    width: 15px;
+    height: 15px;
+    stroke: #475569;
+    stroke-width: 1.8;
+  }
+
+  .mobile-chat .fund-manager-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .mobile-chat .fund-manager-chip {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: #FFFFFF;
+    border: 1px solid #E3E8EF;
+    border-radius: 14px;
+    padding: 8px 12px;
+  }
+
+  .mobile-chat .fund-manager-chip .name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0F172A;
+  }
+
+  .mobile-chat .fund-manager-chip .since {
+    font-size: 12px;
+    color: #64748B;
+  }
+
+  /* Warm refusal card */
+  .mobile-chat .refusal-card {
+    flex-grow: 1;
+    min-width: 0;
+    background: #FFF4E5;
+    border-radius: 6px 22px 22px 22px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .mobile-chat .refusal-card .answer-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #7C2D12;
+  }
+
+  .mobile-chat .refusal-card .answer-text {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #7C2D12;
+  }
+
+  .mobile-chat .refusal-card .learn-more {
+    font-size: 13px;
+    font-weight: 500;
+    color: #9A3412;
+  }
+
+  /* Neutral info card */
+  .mobile-chat .info-card {
+    flex-grow: 1;
+    min-width: 0;
+    background: #FFFFFF;
+    border: 1px solid #E3E8EF;
+    border-radius: 6px 22px 22px 22px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* 6.4 Footer — fixed composer pill + 11px disclaimer */
+  .mobile-chat .composer-wrap {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    padding: 10px 16px calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .mobile-chat .composer-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #FFFFFF;
+    border: none;
+    border-radius: 999px;
+    padding: 6px 6px 6px 20px;
+    box-shadow: 0 8px 24px rgba(11, 42, 91, 0.10);
+  }
+
+  .mobile-chat .composer-pill input {
+    flex-grow: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    color: #0F172A;
+  }
+
+  .mobile-chat .composer-pill input::placeholder {
+    color: #64748B;
+  }
+
+  .mobile-chat .composer-send {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 50%;
+    background: #0B2A5B;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .mobile-chat .composer-send .icon {
+    width: 20px;
+    height: 20px;
+    stroke: #FFFFFF;
+    stroke-width: 2;
+  }
+
+  .mobile-chat .chat-disclaimer {
+    margin: 8px 0 0;
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #64748B;
+  }
+
   /* Icons */
   .icon {
     flex-shrink: 0;
