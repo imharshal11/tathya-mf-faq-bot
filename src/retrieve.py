@@ -57,6 +57,9 @@ FACT_HEADINGS = {
     "fund size": "Fund Size (AUM)",
     "assets under management": "Fund Size (AUM)",
     "benchmark": "Benchmark",
+    "index": "Benchmark",
+    "tracks": "Benchmark",
+    "track": "Benchmark",
     "riskometer": "Riskometer",
     "risk": "Riskometer",
     "manager": "Fund Manager",
@@ -137,12 +140,24 @@ def retrieve_chunks(query: str, top_k: int | None = None, scheme_name: str | Non
     all_funds_query = is_all_funds_query(query)
     definitional_query = is_definitional_query(query)
 
+    # Check if query asks for a specific fact (use heading filter for precision)
+    fact_heading = get_fact_heading(query)
+    use_heading_filter = fact_heading is not None and effective_scheme is not None
+
     # For definitional queries with no scheme, search mf-basics
     if definitional_query and not effective_scheme and not all_funds_query:
         where_filter = {"scheme_name": "Mutual Fund Basics"}
     # For all-funds queries, we'll fetch per scheme below
     elif all_funds_query:
         where_filter = None
+    elif use_heading_filter:
+        # Use heading filter for precise fact retrieval
+        where_filter = {
+            "$and": [
+                {"scheme_name": effective_scheme},
+                {"heading": fact_heading},
+            ]
+        }
     else:
         where_filter = {"scheme_name": effective_scheme} if effective_scheme else None
 

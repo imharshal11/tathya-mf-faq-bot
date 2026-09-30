@@ -346,7 +346,32 @@ def post_chat(req: ChatRequest) -> ChatResponse:
     valid_explicit_scheme = explicit_scheme if explicit_scheme in ALL_FUNDS else None
     active_fund = auto_scheme or valid_explicit_scheme
 
-    intent_label = classify_intent(req.question, active_fund)
+    # Skip AI intent check for clear fact questions:
+    # (a) contains a fund-fact keyword, AND (b) no advisory/returns guardrail triggered
+    # (since we're here, no keyword guardrail triggered, so just check fund-fact keyword)
+    import re
+    fund_fact_keywords = [
+        "expense ratio", "expense", "ter", "exit load", "sip", "minimum", "lump sum",
+        "aum", "fund size", "manager", "managers", "manages", "who runs",
+        "risk", "riskometer", "benchmark", "index", "lock-in", "lockin", "lock in",
+        "nav", "objective", "category", "fund house", "stamp duty", "tax", "returns",
+        "who manages", "what is", "how to", "how can i",
+    ]
+    text_lower = req.question.lower()
+    has_fund_fact_keyword = any(re.search(rf"\b{re.escape(kw)}\b", text_lower) for kw in fund_fact_keywords)
+
+    if has_fund_fact_keyword:
+        intent_label = "FACT"
+        debug_intent = "skipped"
+    else:
+        try:
+            intent_label = classify_intent(req.question, active_fund)
+            debug_intent = intent_label
+        except Exception as e:
+            # Classifier failed or rate-limited: log error, fall back to keyword result (FACT)
+            intent_label = "FACT"
+            debug_intent = "error"
+
     if intent_label == "ADVICE":
         return ChatResponse(
             answer="I cannot provide investment advice. For investor education, please visit AMFI's Mutual Funds Sahi Hai.",
@@ -531,7 +556,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
             )
 
     # Retrieve
-    chunks, scores = retrieve_chunks(retrieval_question, scheme_name=scheme_name)
+    chunks, scores = retrieve_chunks(retrieval_question, scheme_name=scheme_name, top_k=1)
     threshold_passed = len(chunks) > 0
 
     if not threshold_passed:
@@ -544,6 +569,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
                 "matches": [{"chunk_id": c["chunk_id"], "score": round(s, 4)} for c, s in zip(chunks, scores)],
                 "guardrail": None,
                 "fallback": False,
+                "intent": debug_intent,
             },
         )
 
@@ -553,9 +579,9 @@ def post_chat(req: ChatRequest) -> ChatResponse:
     except Exception as e:
         # Groq call failed - use extractive fallback
         fallback_answer = extract_answer(chunks[0]["text"], req.question)
-fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
-            fallback_answer = fallback_answer.replace("redemption", "sale").replace("Redemption", "Sale")
-            top_chunk = chunks[0]
+        fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
+        fallback_answer = fallback_answer.replace("redemption", "sale").replace("Redemption", "Sale")
+        top_chunk = chunks[0]
         return ChatResponse(
             answer=fallback_answer,
             source_url=top_chunk["source_url"],
@@ -565,6 +591,7 @@ fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed"
                 "matches": [{"chunk_id": c["chunk_id"], "score": round(s, 4)} for c, s in zip(chunks, scores)],
                 "guardrail": None,
                 "fallback": True,
+                "intent": debug_intent,
             },
         )
 
@@ -572,10 +599,14 @@ fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed"
     if answer.strip() == "NOT_FOUND":
         # Safety net: if top match score >= NOT_FOUND_OVERRIDE_THRESHOLD, use extractive fallback
         top_score = scores[0] if scores else 0
-        if top_score >= NOT_FOUND_OVERRIDE_THRESHOLD:
+        # Also use extractive fallback if we used heading filter (answer should be in chunk)
+        fact_heading = get_fact_heading(req.question)
+        used_heading_filter = fact_heading is not None and scheme_name is not None
+        if top_score >= NOT_FOUND_OVERRIDE_THRESHOLD or used_heading_filter:
             fallback_answer = extract_answer(chunks[0]["text"], req.question)
-fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
-        fallback_answer = fallback_answer.replace("redemption", "sale").replace("Redemption", "Sale")
+            fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
+            fallback_answer = fallback_answer.replace("redemption", "sale").replace("Redemption", "Sale")
+            fallback_answer = fallback_answer.replace("for sale", "if sold").replace("For sale", "If sold")
             top_chunk = chunks[0]
             return ChatResponse(
                 answer=fallback_answer,
@@ -587,6 +618,7 @@ fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed"
                     "guardrail": None,
                     "fallback": True,
                     "not_found_override": True,
+                    "intent": debug_intent,
                 },
             )
         return ChatResponse(
@@ -598,6 +630,7 @@ fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed"
                 "matches": [{"chunk_id": c["chunk_id"], "score": round(s, 4)} for c, s in zip(chunks, scores)],
                 "guardrail": None,
                 "fallback": False,
+                "intent": debug_intent,
             },
         )
 
@@ -605,6 +638,7 @@ fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed"
     # Post-process: replace "redeemed"/"redemption" with "sold" for exit load answers
     answer = answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
     answer = answer.replace("redemption", "sale").replace("Redemption", "Sale")
+    answer = answer.replace("for sale", "if sold").replace("For sale", "If sold")
     top_chunk = chunks[0]
     return ChatResponse(
         answer=answer,
@@ -615,5 +649,6 @@ fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed"
             "matches": [{"chunk_id": c["chunk_id"], "score": round(s, 4)} for c, s in zip(chunks, scores)],
             "guardrail": None,
             "fallback": False,
+            "intent": debug_intent,
         },
     )

@@ -23,6 +23,7 @@ def run_eval(csv_path: str):
     total = len(rows)
     passed = 0
     failed = []
+    rate_limits = 0
 
     for i, row in enumerate(rows, 1):
         question = row["question"]
@@ -31,25 +32,29 @@ def run_eval(csv_path: str):
         must_not_contain = row["must_not_contain"] if row.get("must_not_contain") else ""
         scheme = row.get("scheme", "") if "scheme" in row else ""
 
-        # Rate limit: wait ~4 seconds between questions (Groq free tier: 30 req/min)
+        # Rate limit: wait 6 seconds between questions (Groq free tier: 30 req/min)
         if i > 1:
-            time.sleep(4)
+            time.sleep(6)
 
-        # Retry once on 429 (rate limit) after 20 seconds
-        for attempt in range(2):
+        # Retry up to 2 times on 429 (rate limit) after 30 seconds
+        data = {}
+        for attempt in range(3):
             try:
                 payload = {"question": question}
                 if scheme:
                     payload["scheme"] = scheme
                 resp = client.post("/chat", json=payload)
-                if resp.status_code == 429 and attempt == 0:
-                    time.sleep(20)
-                    continue
+                if resp.status_code == 429:
+                    rate_limits += 1
+                    print(f"      [RATE LIMIT 429] Q{i}, attempt {attempt+1}/3, waiting 30s...")
+                    if attempt < 2:
+                        time.sleep(30)
+                        continue
                 data = resp.json()
                 break
             except Exception as e:
-                if attempt == 0:
-                    time.sleep(20)
+                if attempt < 2:
+                    time.sleep(30)
                     continue
                 failed.append((i, question, f"Request error: {e}", ""))
                 data = {}
@@ -57,7 +62,7 @@ def run_eval(csv_path: str):
         else:
             # If we exhausted retries
             if not data:
-                failed.append((i, question, "Rate limited after retry", ""))
+                failed.append((i, question, "Rate limited after retries", ""))
                 continue
 
         answer = data.get("answer", "")
@@ -100,12 +105,15 @@ def run_eval(csv_path: str):
         print(f"{i:3d} [{status}]{scheme_str} {question[:80]}...")
         if status == "FAIL":
             print(f"      Expected: type={expected_type}, contains='{must_contain}', not_contains='{must_not_contain}'")
+            print(f"      Intent: {debug.get('intent')}, Guardrail: {guardrail}")
+            print(f"      Matches: {debug.get('matches')}")
             # Handle unicode for printing
             safe_answer = answer[:150].encode('ascii', 'replace').decode('ascii')
             print(f"      Got:      type={actual_type}, answer='{safe_answer}'")
 
     print(f"\n{'='*60}")
     print(f"Total: {total}, Passed: {passed}, Failed: {len(failed)}")
+    print(f"Rate limits (429): {rate_limits}")
     print(f"Score: {passed}/{total} ({passed/total*100:.1f}%)")
 
     if failed:
