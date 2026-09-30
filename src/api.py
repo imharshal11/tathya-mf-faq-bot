@@ -581,6 +581,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
         fallback_answer = extract_answer(chunks[0]["text"], req.question)
         fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
         fallback_answer = fallback_answer.replace("redemption", "sale").replace("Redemption", "Sale")
+        fallback_answer = fallback_answer.replace("for sale", "if sold").replace("For sale", "If sold")
         top_chunk = chunks[0]
         return ChatResponse(
             answer=fallback_answer,
@@ -592,6 +593,8 @@ def post_chat(req: ChatRequest) -> ChatResponse:
                 "guardrail": None,
                 "fallback": True,
                 "intent": debug_intent,
+                "answer_check": "ok",
+                "number_check": "ok",
             },
         )
 
@@ -616,6 +619,8 @@ def post_chat(req: ChatRequest) -> ChatResponse:
                     "fallback": True,
                     "not_found_override": True,
                     "intent": debug_intent,
+                    "answer_check": "ok",
+                    "number_check": "ok",
                 },
             )
         return ChatResponse(
@@ -628,6 +633,8 @@ def post_chat(req: ChatRequest) -> ChatResponse:
                 "guardrail": None,
                 "fallback": False,
                 "intent": debug_intent,
+                "answer_check": "ok",
+                "number_check": "ok",
             },
         )
 
@@ -636,6 +643,49 @@ def post_chat(req: ChatRequest) -> ChatResponse:
     answer = answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
     answer = answer.replace("redemption", "sale").replace("Redemption", "Sale")
     answer = answer.replace("for sale", "if sold").replace("For sale", "If sold")
+
+    # ANSWER CHECK (Layer 3): block advice language in generated answer
+    advice_phrases = [
+        "you should", "i recommend", "we recommend", "good investment", "worth investing",
+        "yes, you can buy", "yes, you can invest", "suitable for you", "consider investing",
+        "will rise", "will grow", "good choice", "safe bet"
+    ]
+    answer_lower = answer.lower()
+    answer_check_blocked = any(phrase in answer_lower for phrase in advice_phrases)
+    if answer_check_blocked:
+        answer = "I cannot provide investment advice. For investor education, please visit AMFI's Mutual Funds Sahi Hai."
+        answer_check_status = "blocked"
+    else:
+        answer_check_status = "ok"
+
+    # NUMBER CHECK (Layer 4): verify every number in answer appears in retrieved chunk
+    import re
+    top_chunk_text = chunks[0]["text"]
+    # Normalize both texts for comparison (remove commas, extra spaces)
+    def normalize_num(text: str) -> str:
+        return re.sub(r"[\s,]+", "", text.lower())
+
+    chunk_norm = normalize_num(top_chunk_text)
+    # Find all numbers in answer: percentages, rupee amounts, years, dates
+    number_pattern = re.compile(r"(?:\d+(?:,\d+)*(?:\.\d+)?%|₹\s*\d+(?:,\d+)*(?:\.\d+)?|\d+(?:\.\d+)?\s*(?:years?|crore|lakh)|\d{4})")
+    numbers_in_answer = number_pattern.findall(answer)
+    number_check_fallback = False
+    for num in numbers_in_answer:
+        num_norm = normalize_num(num)
+        if num_norm not in chunk_norm:
+            number_check_fallback = True
+            break
+
+    if number_check_fallback:
+        fallback_answer = extract_answer(chunks[0]["text"], req.question)
+        fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
+        fallback_answer = fallback_answer.replace("redemption", "sale").replace("Redemption", "Sale")
+        fallback_answer = fallback_answer.replace("for sale", "if sold").replace("For sale", "If sold")
+        answer = fallback_answer
+        number_check_status = "fallback"
+    else:
+        number_check_status = "ok"
+
     top_chunk = chunks[0]
     return ChatResponse(
         answer=answer,
@@ -647,5 +697,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
             "guardrail": None,
             "fallback": False,
             "intent": debug_intent,
+            "answer_check": answer_check_status,
+            "number_check": number_check_status,
         },
     )
