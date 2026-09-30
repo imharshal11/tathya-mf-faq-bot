@@ -1570,8 +1570,18 @@ a:hover { color: #075985; }
 
 /* ---------- Mobile (max-width: 767px) — shell hidden for now ---------- */
 @media (max-width: 767px) {
+  /* PHASE 5 — MOBILE HOME (copied from Docx/design/mobile-home.html) */
   .app { display: none !important; }
-  .mobile-shell { display: flex !important; flex-direction: column; height: 100dvh; background: #F3F7FC; position: relative; overflow: hidden; }
+
+  .mobile-shell {
+    display: flex !important;
+    flex-direction: column;
+    width: 100%;
+    height: 100dvh;
+    background: #F3F7FC;
+    position: relative;
+    overflow: hidden;
+  }
 
   /* Mobile header */
   .mobile-header {
@@ -1633,13 +1643,16 @@ a:hover { color: #075985; }
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 0;
     cursor: pointer;
+    flex-shrink: 0;
   }
 
   .mobile-info-btn .icon {
     width: 20px;
     height: 20px;
     stroke: #0F172A;
+    stroke-width: 1.8;
   }
 
   /* Mobile main */
@@ -1652,9 +1665,287 @@ a:hover { color: #075985; }
     padding: 8px 20px calc(96px + env(safe-area-inset-bottom)) 20px;
   }
 
-  /* Mobile bottom nav — ICONS ONLY, 50px circles */
+  .mobile-home {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* 5.3 Greeting */
+  .home-greeting {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .home-greeting .hi {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 32px;
+    line-height: 1.15;
+    letter-spacing: -0.6px;
+    color: #0F172A;
+  }
+
+  .home-greeting .ask {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #475569;
+  }
+
+  /* 5.4 Start new chat + facts pill */
+  .start-chat-btn {
+    width: 100%;
+    height: 52px;
+    border: none;
+    border-radius: 999px;
+    background: #0B2A5B;
+    color: #FFFFFF;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px 0 22px;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .start-chat-btn .icon-circle {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #0EA5E9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .start-chat-btn .icon-circle .icon {
+    width: 18px;
+    height: 18px;
+    stroke: #FFFFFF;
+    stroke-width: 2.2;
+  }
+
+  .mobile-home .trust-pill {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: #E0F2FE;
+    color: #075985;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    margin-top: -4px;
+  }
+
+  .mobile-home .trust-pill .icon {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    stroke: #075985;
+    stroke-width: 2;
+  }
+
+  /* 5.5 Funds section */
+  .funds-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .funds-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .funds-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0F172A;
+  }
+
+  .funds-hint {
+    font-size: 13px;
+    color: #64748B;
+  }
+
+  .fund-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+  }
+
+  .fund-card {
+    height: 100px;
+    border: none;
+    border-radius: 24px;
+    padding: 14px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .fund-card.large-cap { background: #DBEEFD; }
+  .fund-card.flexi-cap { background: #E3E6FB; }
+  .fund-card.elss { background: #D5F5EE; }
+  .fund-card.small-cap { background: #FCEFCB; }
+
+  .fund-card-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .fund-card-icon .icon {
+    width: 17px;
+    height: 17px;
+    stroke: #0B2A5B;
+    stroke-width: 2;
+  }
+
+  .fund-card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .fund-card-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0F172A;
+  }
+
+  .fund-card-subtitle {
+    font-size: 12px;
+    color: #334155;
+  }
+
+  .fund-card.wide {
+    grid-column: span 2;
+    height: auto;
+    background: #FFFFFF;
+    border: 1px solid #E3E8EF;
+    border-radius: 24px;
+    padding: 12px 14px;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .fund-card-icon.balanced {
+    background: #F1F5F9;
+  }
+
+  .fund-card.wide .fund-card-text {
+    flex-grow: 1;
+    min-width: 0;
+  }
+
+  .fund-card .chevron {
+    width: 18px;
+    height: 18px;
+    stroke: #64748B;
+    stroke-width: 2;
+    flex-shrink: 0;
+  }
+
+  /* 5.6 Disclaimer card */
+  .disclaimer-card {
+    background: #FFFFFF;
+    border: 1px solid #E3E8EF;
+    border-radius: 18px;
+    padding: 10px 14px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .disclaimer-card .icon {
+    width: 16px;
+    height: 16px;
+    stroke: #64748B;
+    stroke-width: 2;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .disclaimer-card .text {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #475569;
+  }
+
+  /* 5.7 Built by row */
+  .credit-links {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding-top: 2px;
+  }
+
+  .credit-links span {
+    font-size: 13px;
+    color: #64748B;
+  }
+
+  .credit-links span strong {
+    font-weight: 700;
+    color: #0F172A;
+  }
+
+  .credit-links a {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    border: 1px solid #E3E8EF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .credit-links a .icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .credit-links a .icon.linkedin {
+    stroke: #0A66C2;
+    stroke-width: 2;
+  }
+
+  .credit-links a .icon.github {
+    stroke: #0F172A;
+    stroke-width: 2;
+  }
+
+  /* 5.8 Mobile bottom nav — ICONS ONLY, 50px circles */
   .mobile-bottom-nav {
-    position: absolute;
+    position: fixed;
     left: 50%;
     bottom: calc(22px + env(safe-area-inset-bottom));
     transform: translateX(-50%);
