@@ -10,3 +10,5 @@ data/
 .DS_Store
 
 scripts/*.png
+
+tests/last_failed.txt
