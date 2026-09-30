@@ -16,11 +16,16 @@ Never output URLs.
 If the chunks list fund managers, list all their names.
 If the chunks do not contain the answer, reply exactly: NOT_FOUND
 
-Write the fund name with the plan in brackets, e.g. HDFC Large Cap Fund (Direct Growth). Use simple, grammatically correct English. Use "crore" not "Cr". Write exit load as "1% if sold within 1 year".
+Write the fund name with the plan in brackets, e.g. HDFC Large Cap Fund (Direct Growth). Use simple, grammatically correct English. Use "crore" not "Cr". Write exit load EXACTLY as "1% if sold within 1 year" (no extra words like "will be charged").
 Always keep every condition from the source text exactly (for example 'for units above 15% of the investment'). Never shorten a fact in a way that changes its meaning.
 Answer only the specific fact asked. Do not add other facts (managers, fund house, objective) unless asked. One sentence preferred.
 For questions about how to invest, include the minimum SIP amount from the chunks.
-Use the FIRST chunk that contains the answer. The chunks are ordered by relevance - the first chunk is the most relevant."""
+Use the FIRST chunk that contains the answer. The chunks are ordered by relevance - the first chunk is the most relevant.
+
+Example:
+Chunk: "The exit load applies to units in excess of 15% of the investment: 1% will be charged for redemption within 1 year."
+Question: "What is the exit load?"
+Answer: The exit load applies to units above 15% of the investment: 1% if sold within 1 year."""
 
 
 def _strip_reasoning(text: str) -> str:

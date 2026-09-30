@@ -23,7 +23,7 @@ def _get_type(row: dict) -> str:
 
 
 def _select_quick_set(rows: list[dict]) -> list[dict]:
-    """Select ~20 rows (2-3 per type) for quick smoke test."""
+    """Select 2-3 rows per expected type across the whole file for quick smoke test."""
     by_type = {}
     for row in rows:
         t = _get_type(row)
@@ -31,11 +31,15 @@ def _select_quick_set(rows: list[dict]) -> list[dict]:
 
     selected = []
     for t, type_rows in by_type.items():
-        # Take 2-3 per type, up to ~20 total
+        # Take 2-3 per type from across the file (not just first rows)
         take = min(3, len(type_rows))
-        selected.extend(type_rows[:take])
-        if len(selected) >= 20:
-            break
+        # Pick from beginning, middle, and end for coverage
+        if len(type_rows) <= take:
+            selected.extend(type_rows)
+        else:
+            indices = [0, len(type_rows) // 2, len(type_rows) - 1]
+            for i in indices[:take]:
+                selected.append(type_rows[i])
     return selected
 
 

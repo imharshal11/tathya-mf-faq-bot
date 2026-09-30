@@ -110,6 +110,14 @@ LIVE_DATA_PHRASES = [
     r"right\s+now",
 ]
 
+# Exceptions for live data: prediction questions about NAV should not trigger live_data
+LIVE_DATA_EXCEPTIONS = [
+    r"will.*nav.*rise",
+    r"will.*nav.*go",
+    r"nav.*rise",
+    r"nav.*go\s+up",
+]
+
 # Phrases that should NOT trigger returns guardrail (exceptions)
 RETURNS_EXCEPTIONS = [
     r"\bperformance\s+benchmark\b",
@@ -259,6 +267,10 @@ def check_returns(text: str) -> bool:
 def check_live_data(text: str) -> bool:
     """Check for live data requests. Use whole-word matching."""
     text_lower = text.lower()
+    # Check exceptions first
+    for exception in LIVE_DATA_EXCEPTIONS:
+        if re.search(exception, text_lower):
+            return False
     for phrase in LIVE_DATA_PHRASES:
         if re.search(phrase, text_lower):
             return True

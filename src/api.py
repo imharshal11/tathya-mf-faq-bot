@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from src.ingest import load_env, rebuild_index
 from src.retrieve import retrieve_chunks, retrieve_all_funds_fact, is_all_funds_query, get_fact_heading, ALL_FUNDS, detect_scheme
 from src.generate import generate_answer, extract_answer
-from src.guardrails import check_guardrails, GuardrailResult, AMFI_URL, TODAY_DATE
+from src.guardrails import check_guardrails, GuardrailResult, AMFI_URL, HDFC_FACTSHEET_URL, TODAY_DATE
 from src.intent import classify_intent
 from src.common import get_collection, COLLECTION_NAME, CORPUS_PATH, TOP_K, SCORE_THRESHOLD, NOT_FOUND_OVERRIDE_THRESHOLD
 
@@ -354,7 +354,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
         "expense ratio", "expense", "ter", "exit load", "sip", "minimum", "lump sum",
         "aum", "fund size", "manager", "managers", "manages", "who runs",
         "risk", "riskometer", "benchmark", "index", "lock-in", "lockin", "lock in",
-        "nav", "objective", "category", "fund house", "stamp duty", "tax", "returns",
+        "objective", "category", "fund house", "stamp duty",
         "who manages", "what is", "how to", "how can i",
     ]
     text_lower = req.question.lower()
@@ -446,7 +446,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
             "expense ratio", "expense", "ter", "exit load", "sip", "minimum", "lump sum",
             "aum", "fund size", "manager", "managers", "manages", "who runs",
             "risk", "riskometer", "benchmark", "index", "lock-in", "lockin", "lock in",
-            "nav", "objective", "category", "fund house", "stamp duty", "tax", "returns"
+            "nav", "objective", "category", "fund house", "stamp duty"
         ]
         text_lower = req.question.lower()
         has_fund_fact_keyword = any(re.search(rf"\b{re.escape(kw)}\b", text_lower) for kw in fund_fact_keywords)
@@ -575,13 +575,28 @@ def post_chat(req: ChatRequest) -> ChatResponse:
 
     # Generate with Groq
     try:
-        answer = generate_answer(chunks, req.question)
+        # Pre-process chunk text for exit load questions to normalize phrasing
+        processed_chunks = chunks
+        if "exit load" in req.question.lower():
+            processed_chunks = []
+            for ch in chunks:
+                text = ch["text"]
+                # Remove "will be charged" phrases
+                text = text.replace("will be charged for redemption", "if sold")
+                text = text.replace("will be charged for sale", "if sold")
+                text = text.replace("will be charged if sold", "if sold")
+                text = text.replace("will be charged ", "")
+                text = text.replace("will be charged", "")
+                processed_chunks.append({**ch, "text": text})
+        
+        answer = generate_answer(processed_chunks, req.question)
     except Exception as e:
         # Groq call failed - use extractive fallback
         fallback_answer = extract_answer(chunks[0]["text"], req.question)
         fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
         fallback_answer = fallback_answer.replace("redemption", "sale").replace("Redemption", "Sale")
         fallback_answer = fallback_answer.replace("for sale", "if sold").replace("For sale", "If sold")
+        fallback_answer = fallback_answer.replace("will be charged ", "").replace("will be charged", "")
         top_chunk = chunks[0]
         return ChatResponse(
             answer=fallback_answer,
@@ -607,6 +622,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
             fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
             fallback_answer = fallback_answer.replace("redemption", "sale").replace("Redemption", "Sale")
             fallback_answer = fallback_answer.replace("for sale", "if sold").replace("For sale", "If sold")
+            fallback_answer = fallback_answer.replace("will be charged ", "").replace("will be charged", "")
             top_chunk = chunks[0]
             return ChatResponse(
                 answer=fallback_answer,
@@ -643,6 +659,9 @@ def post_chat(req: ChatRequest) -> ChatResponse:
     answer = answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
     answer = answer.replace("redemption", "sale").replace("Redemption", "Sale")
     answer = answer.replace("for sale", "if sold").replace("For sale", "If sold")
+    # Remove "will be charged" phrasing
+    answer = answer.replace("will be charged ", "")
+    answer = answer.replace("will be charged", "")
 
     # ANSWER CHECK (Layer 3): block advice language in generated answer
     advice_phrases = [
@@ -681,6 +700,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
         fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
         fallback_answer = fallback_answer.replace("redemption", "sale").replace("Redemption", "Sale")
         fallback_answer = fallback_answer.replace("for sale", "if sold").replace("For sale", "If sold")
+        fallback_answer = fallback_answer.replace("will be charged ", "").replace("will be charged", "")
         answer = fallback_answer
         number_check_status = "fallback"
     else:
