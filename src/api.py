@@ -599,10 +599,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
     if answer.strip() == "NOT_FOUND":
         # Safety net: if top match score >= NOT_FOUND_OVERRIDE_THRESHOLD, use extractive fallback
         top_score = scores[0] if scores else 0
-        # Also use extractive fallback if we used heading filter (answer should be in chunk)
-        fact_heading = get_fact_heading(req.question)
-        used_heading_filter = fact_heading is not None and scheme_name is not None
-        if top_score >= NOT_FOUND_OVERRIDE_THRESHOLD or used_heading_filter:
+        if top_score >= NOT_FOUND_OVERRIDE_THRESHOLD:
             fallback_answer = extract_answer(chunks[0]["text"], req.question)
             fallback_answer = fallback_answer.replace("redeemed", "sold").replace("Redeemed", "Sold")
             fallback_answer = fallback_answer.replace("redemption", "sale").replace("Redemption", "Sale")

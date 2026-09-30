@@ -4,6 +4,8 @@ import csv
 import sys
 import os
 import time
+import argparse
+import json
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -12,20 +14,79 @@ from fastapi.testclient import TestClient
 from src.api import app
 
 
-def run_eval(csv_path: str):
+FAILED_LOG = "tests/last_failed.txt"
+
+
+def _get_type(row: dict) -> str:
+    """Get the type category for a row."""
+    return row["expected_type"]
+
+
+def _select_quick_set(rows: list[dict]) -> list[dict]:
+    """Select ~20 rows (2-3 per type) for quick smoke test."""
+    by_type = {}
+    for row in rows:
+        t = _get_type(row)
+        by_type.setdefault(t, []).append(row)
+
+    selected = []
+    for t, type_rows in by_type.items():
+        # Take 2-3 per type, up to ~20 total
+        take = min(3, len(type_rows))
+        selected.extend(type_rows[:take])
+        if len(selected) >= 20:
+            break
+    return selected
+
+
+def _load_failed_indices() -> set[int]:
+    """Load failed row indices from last_failed.txt (1-indexed)."""
+    if not os.path.exists(FAILED_LOG):
+        return set()
+    with open(FAILED_LOG, "r", encoding="utf-8") as f:
+        return {int(line.strip()) for line in f if line.strip().isdigit()}
+
+
+def _save_failed_indices(failed: list[tuple]) -> None:
+    """Save failed row indices to last_failed.txt."""
+    with open(FAILED_LOG, "w", encoding="utf-8") as f:
+        for idx, _, _, _ in failed:
+            f.write(f"{idx}\n")
+
+
+def run_eval(csv_path: str, only_text: str | None = None, use_failed: bool = False, quick: bool = False):
     """Run evaluation and return pass/fail stats."""
     client = TestClient(app)
 
     with open(csv_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        rows = list(reader)
+        all_rows = list(reader)
+
+    # Filter rows based on flags
+    if use_failed:
+        failed_indices = _load_failed_indices()
+        rows = [(i, row) for i, row in enumerate(all_rows, 1) if i in failed_indices]
+        if not rows:
+            print("No failed rows from last run.")
+            return 0, 0, []
+    elif quick:
+        quick_rows = _select_quick_set(all_rows)
+        # Keep original indices
+        rows = [(i, row) for i, row in enumerate(all_rows, 1) if row in quick_rows]
+    elif only_text:
+        rows = [(i, row) for i, row in enumerate(all_rows, 1) if only_text.lower() in row["question"].lower()]
+        if not rows:
+            print(f"No questions containing '{only_text}'")
+            return 0, 0, []
+    else:
+        rows = [(i, row) for i, row in enumerate(all_rows, 1)]
 
     total = len(rows)
     passed = 0
     failed = []
     rate_limits = 0
 
-    for i, row in enumerate(rows, 1):
+    for idx, (orig_i, row) in enumerate(rows, 1):
         question = row["question"]
         expected_type = row["expected_type"]
         must_contain = row["must_contain"] if row["must_contain"] else ""
@@ -33,7 +94,7 @@ def run_eval(csv_path: str):
         scheme = row.get("scheme", "") if "scheme" in row else ""
 
         # Rate limit: wait 6 seconds between questions (Groq free tier: 30 req/min)
-        if i > 1:
+        if idx > 1:
             time.sleep(6)
 
         # Retry up to 2 times on 429 (rate limit) after 30 seconds
@@ -46,7 +107,7 @@ def run_eval(csv_path: str):
                 resp = client.post("/chat", json=payload)
                 if resp.status_code == 429:
                     rate_limits += 1
-                    print(f"      [RATE LIMIT 429] Q{i}, attempt {attempt+1}/3, waiting 30s...")
+                    print(f"      [RATE LIMIT 429] Q{orig_i}, attempt {attempt+1}/3, waiting 30s...")
                     if attempt < 2:
                         time.sleep(30)
                         continue
@@ -56,13 +117,13 @@ def run_eval(csv_path: str):
                 if attempt < 2:
                     time.sleep(30)
                     continue
-                failed.append((i, question, f"Request error: {e}", ""))
+                failed.append((orig_i, question, f"Request error: {e}", ""))
                 data = {}
                 break
         else:
             # If we exhausted retries
             if not data:
-                failed.append((i, question, "Rate limited after retries", ""))
+                failed.append((orig_i, question, "Rate limited after retries", ""))
                 continue
 
         answer = data.get("answer", "")
@@ -99,10 +160,10 @@ def run_eval(csv_path: str):
                 reason_parts.append(f"must_contain='{must_contain}'")
             if must_not_contain and not not_contain_match:
                 reason_parts.append(f"must_not_contain='{must_not_contain}'")
-            failed.append((i, question, "; ".join(reason_parts), answer[:200]))
+            failed.append((orig_i, question, "; ".join(reason_parts), answer[:200]))
 
         scheme_str = f" [scheme={scheme}]" if scheme else ""
-        print(f"{i:3d} [{status}]{scheme_str} {question[:80]}...")
+        print(f"{orig_i:3d} [{status}]{scheme_str} {question[:80]}...")
         if status == "FAIL":
             print(f"      Expected: type={expected_type}, contains='{must_contain}', not_contains='{must_not_contain}'")
             print(f"      Intent: {debug.get('intent')}, Guardrail: {guardrail}")
@@ -114,20 +175,30 @@ def run_eval(csv_path: str):
     print(f"\n{'='*60}")
     print(f"Total: {total}, Passed: {passed}, Failed: {len(failed)}")
     print(f"Rate limits (429): {rate_limits}")
-    print(f"Score: {passed}/{total} ({passed/total*100:.1f}%)")
+    if total > 0:
+        print(f"Score: {passed}/{total} ({passed/total*100:.1f}%)")
 
     if failed:
         print(f"\nFailed questions:")
-        for idx, q, reason, ans in failed:
+        for orig_i, q, reason, ans in failed:
             safe_q = q.encode('ascii', 'replace').decode('ascii')
             safe_ans = ans[:200].encode('ascii', 'replace').decode('ascii')
-            print(f"  {idx}: {safe_q}")
+            print(f"  {orig_i}: {safe_q}")
             print(f"     Reason: {reason}")
             print(f"     Answer: {safe_ans}")
+
+    # Save failed indices for --failed option
+    _save_failed_indices(failed)
 
     return passed, total, failed
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run evaluation")
+    parser.add_argument("--only", type=str, help="Filter questions containing this text")
+    parser.add_argument("--failed", action="store_true", help="Re-run only failed rows from last run")
+    parser.add_argument("--quick", action="store_true", help="Run quick smoke test (~20 rows, 2-3 per type)")
+    args = parser.parse_args()
+
     csv_path = "tests/eval_questions.csv"
-    run_eval(csv_path)
+    run_eval(csv_path, only_text=args.only, use_failed=args.failed, quick=args.quick)

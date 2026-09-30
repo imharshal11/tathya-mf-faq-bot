@@ -147,26 +147,69 @@ def retrieve_chunks(query: str, top_k: int | None = None, scheme_name: str | Non
     # For definitional queries with no scheme, search mf-basics
     if definitional_query and not effective_scheme and not all_funds_query:
         where_filter = {"scheme_name": "Mutual Fund Basics"}
+        results = coll.query(
+            query_texts=[query],
+            n_results=k,
+            include=["documents", "metadatas", "distances"],
+            where=where_filter,
+        )
     # For all-funds queries, we'll fetch per scheme below
     elif all_funds_query:
         where_filter = None
+        results = coll.query(
+            query_texts=[query],
+            n_results=k,
+            include=["documents", "metadatas", "distances"],
+            where=where_filter,
+        )
     elif use_heading_filter:
-        # Use heading filter for precise fact retrieval
+        # Heading filter as PREFERENCE: first search with scheme + heading
         where_filter = {
             "$and": [
                 {"scheme_name": effective_scheme},
                 {"heading": fact_heading},
             ]
         }
+        results = coll.query(
+            query_texts=[query],
+            n_results=k,
+            include=["documents", "metadatas", "distances"],
+            where=where_filter,
+        )
+
+        # If no chunk above threshold, fallback to scheme-only search
+        if not results["ids"] or not results["ids"][0]:
+            where_filter = {"scheme_name": effective_scheme}
+            results = coll.query(
+                query_texts=[query],
+                n_results=k,
+                include=["documents", "metadatas", "distances"],
+                where=where_filter,
+            )
+        else:
+            chunks_above_threshold = False
+            for i, chunk_id in enumerate(results["ids"][0]):
+                dist = results["distances"][0][i]
+                sim = _normalize_score(dist)
+                if sim >= threshold:
+                    chunks_above_threshold = True
+                    break
+            if not chunks_above_threshold:
+                where_filter = {"scheme_name": effective_scheme}
+                results = coll.query(
+                    query_texts=[query],
+                    n_results=k,
+                    include=["documents", "metadatas", "distances"],
+                    where=where_filter,
+                )
     else:
         where_filter = {"scheme_name": effective_scheme} if effective_scheme else None
-
-    results = coll.query(
-        query_texts=[query],
-        n_results=k,
-        include=["documents", "metadatas", "distances"],
-        where=where_filter,
-    )
+        results = coll.query(
+            query_texts=[query],
+            n_results=k,
+            include=["documents", "metadatas", "distances"],
+            where=where_filter,
+        )
 
     if not results["ids"] or not results["ids"][0]:
         return [], []
