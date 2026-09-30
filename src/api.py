@@ -93,6 +93,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     answer: str
+    title: str | None = None
     source_url: str
     fetched_date: str
     debug: dict
@@ -329,6 +330,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
         fetched_date = format_date(guardrail_result.fetched_date) if guardrail_result.fetched_date else ""
         return ChatResponse(
             answer=guardrail_result.message,
+            title=guardrail_result.title,
             source_url=source_url,
             fetched_date=fetched_date,
             debug={
@@ -374,7 +376,8 @@ def post_chat(req: ChatRequest) -> ChatResponse:
 
     if intent_label == "ADVICE":
         return ChatResponse(
-            answer="I cannot provide investment advice. For investor education, please visit AMFI's Mutual Funds Sahi Hai.",
+            answer="I share facts only. To learn more about investing, visit AMFI's Mutual Funds Sahi Hai.",
+            title="I can't give investment advice.",
             source_url=AMFI_URL,
             fetched_date=TODAY_DATE,
             debug={
@@ -387,7 +390,8 @@ def post_chat(req: ChatRequest) -> ChatResponse:
         )
     if intent_label == "RETURNS":
         return ChatResponse(
-            answer="I cannot provide performance or returns data. Please refer to the official HDFC factsheet.",
+            answer="Please check the official HDFC factsheet for this information.",
+            title="I can't share returns or performance.",
             source_url=HDFC_FACTSHEET_URL,
             fetched_date=TODAY_DATE,
             debug={
@@ -400,7 +404,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
         )
     if intent_label == "OFF_TOPIC":
         return ChatResponse(
-            answer="I only cover 5 HDFC Mutual Fund schemes: Large Cap, Flexi Cap, ELSS Tax Saver, Small Cap, and Balanced Advantage.",
+            answer="I can only answer questions about these 5 HDFC funds: Large Cap, Flexi Cap, ELSS Tax Saver, Small Cap and Balanced Advantage.",
             source_url="",
             fetched_date="",
             debug={
@@ -413,7 +417,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
         )
     if intent_label == "NONSENSE":
         return ChatResponse(
-            answer="I don't have that information yet.",
+            answer="I don't have that information yet. Try asking about the expense ratio, exit load, minimum SIP, lock-in period, riskometer, benchmark or fund managers.",
             source_url="",
             fetched_date="",
             debug={
@@ -561,7 +565,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
 
     if not threshold_passed:
         return ChatResponse(
-            answer="Not in the knowledge base",
+            answer="I don't have that information yet. Try asking about the expense ratio, exit load, minimum SIP, lock-in period, riskometer, benchmark or fund managers.",
             source_url="",
             fetched_date="",
             debug={
@@ -640,7 +644,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
                 },
             )
         return ChatResponse(
-            answer="Not in the knowledge base",
+            answer="I don't have that information yet. Try asking about the expense ratio, exit load, minimum SIP, lock-in period, riskometer, benchmark or fund managers.",
             source_url="",
             fetched_date="",
             debug={
@@ -672,10 +676,12 @@ def post_chat(req: ChatRequest) -> ChatResponse:
     answer_lower = answer.lower()
     answer_check_blocked = any(phrase in answer_lower for phrase in advice_phrases)
     if answer_check_blocked:
-        answer = "I cannot provide investment advice. For investor education, please visit AMFI's Mutual Funds Sahi Hai."
+        answer = "I share facts only. To learn more about investing, visit AMFI's Mutual Funds Sahi Hai."
         answer_check_status = "blocked"
+        title_override = "I can't give investment advice."
     else:
         answer_check_status = "ok"
+        title_override = None
 
     # NUMBER CHECK (Layer 4): verify every number in answer appears in retrieved chunk
     import re
@@ -709,6 +715,7 @@ def post_chat(req: ChatRequest) -> ChatResponse:
     top_chunk = chunks[0]
     return ChatResponse(
         answer=answer,
+        title=title_override,
         source_url=top_chunk["source_url"],
         fetched_date=format_date(top_chunk["fetched_date"]),
         debug={

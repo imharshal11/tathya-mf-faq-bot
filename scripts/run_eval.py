@@ -131,6 +131,7 @@ def run_eval(csv_path: str, only_text: str | None = None, use_failed: bool = Fal
                 continue
 
         answer = data.get("answer", "")
+        title = data.get("title", "") or ""
         debug = data.get("debug", {})
         guardrail = debug.get("guardrail")
         threshold_passed = debug.get("threshold_passed", False)
@@ -143,14 +144,15 @@ def run_eval(csv_path: str, only_text: str | None = None, use_failed: bool = Fal
         else:
             actual_type = "answer"
 
-        # Check pass/fail
+        # Check pass/fail - check must_contain against title + answer combined
         type_match = (actual_type == expected_type)
+        combined = (title + " " + answer).strip()
         content_match = True
         if must_contain:
-            content_match = must_contain.lower() in answer.lower()
+            content_match = must_contain.lower() in combined.lower()
         not_contain_match = True
         if must_not_contain:
-            not_contain_match = must_not_contain.lower() not in answer.lower()
+            not_contain_match = must_not_contain.lower() not in combined.lower()
 
         if type_match and content_match and not_contain_match:
             passed += 1
@@ -164,7 +166,7 @@ def run_eval(csv_path: str, only_text: str | None = None, use_failed: bool = Fal
                 reason_parts.append(f"must_contain='{must_contain}'")
             if must_not_contain and not not_contain_match:
                 reason_parts.append(f"must_not_contain='{must_not_contain}'")
-            failed.append((orig_i, question, "; ".join(reason_parts), answer[:200]))
+            failed.append((orig_i, question, "; ".join(reason_parts), combined[:200]))
 
         scheme_str = f" [scheme={scheme}]" if scheme else ""
         print(f"{orig_i:3d} [{status}]{scheme_str} {question[:80]}...")
@@ -173,8 +175,8 @@ def run_eval(csv_path: str, only_text: str | None = None, use_failed: bool = Fal
             print(f"      Intent: {debug.get('intent')}, Guardrail: {guardrail}")
             print(f"      Matches: {debug.get('matches')}")
             # Handle unicode for printing
-            safe_answer = answer[:150].encode('ascii', 'replace').decode('ascii')
-            print(f"      Got:      type={actual_type}, answer='{safe_answer}'")
+            safe_combined = combined[:150].encode('ascii', 'replace').decode('ascii')
+            print(f"      Got:      type={actual_type}, answer='{safe_combined}'")
 
     print(f"\n{'='*60}")
     print(f"Total: {total}, Passed: {passed}, Failed: {len(failed)}")

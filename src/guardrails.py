@@ -10,6 +10,7 @@ from dataclasses import dataclass
 class GuardrailResult:
     triggered: bool
     type: str | None
+    title: str | None
     message: str
     source_url: str
     fetched_date: str
@@ -416,7 +417,8 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
         return GuardrailResult(
             triggered=True,
             type="pii",
-            message="Please do not share personal information (PAN, Aadhaar, account numbers, OTP, email, phone, passwords).",
+            title="Please don't share personal details.",
+            message="For your safety, never share your PAN, Aadhaar, account number, OTP, email, phone number or password.",
             source_url=AMFI_URL,
             fetched_date=TODAY_DATE,
         )
@@ -426,7 +428,8 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
         return GuardrailResult(
             triggered=True,
             type="greeting",
-            message="Hello! I can answer factual questions about 5 HDFC Mutual Fund schemes (Direct Plan - Growth). For example: 'What is the expense ratio of HDFC Large Cap Fund?' or 'What is the lock-in period of HDFC ELSS Tax Saver Fund?'",
+            title=None,
+            message="Hi! I'm Tathya. Ask me a fact about any of 5 HDFC mutual funds, for example: \"What is the expense ratio of HDFC Large Cap Fund?\"",
             source_url="",
             fetched_date="",
         )
@@ -436,7 +439,8 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
         return GuardrailResult(
             triggered=True,
             type="greeting",
-            message="Hello! I can answer factual questions about 5 HDFC Mutual Fund schemes (Direct Plan - Growth). For example: 'What is the expense ratio of HDFC Large Cap Fund?' or 'What is the lock-in period of HDFC ELSS Tax Saver Fund?'",
+            title=None,
+            message="Hi! I'm Tathya. Ask me a fact about any of 5 HDFC mutual funds, for example: \"What is the expense ratio of HDFC Large Cap Fund?\"",
             source_url="",
             fetched_date="",
         )
@@ -446,6 +450,7 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
         return GuardrailResult(
             triggered=True,
             type="thanks",
+            title=None,
             message="You're welcome! Ask me anything else about the 5 HDFC funds.",
             source_url="",
             fetched_date="",
@@ -456,7 +461,8 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
         return GuardrailResult(
             triggered=True,
             type="advisory",
-            message="I cannot provide investment advice. For investor education, please visit AMFI's Mutual Funds Sahi Hai.",
+            title="I can't give investment advice.",
+            message="I share facts only. To learn more about investing, visit AMFI's Mutual Funds Sahi Hai.",
             source_url=AMFI_URL,
             fetched_date=TODAY_DATE,
         )
@@ -466,7 +472,8 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
         return GuardrailResult(
             triggered=True,
             type="advisory",
-            message="I cannot provide investment advice. For investor education, please visit AMFI's Mutual Funds Sahi Hai.",
+            title="I can't give investment advice.",
+            message="I share facts only. To learn more about investing, visit AMFI's Mutual Funds Sahi Hai.",
             source_url=AMFI_URL,
             fetched_date=TODAY_DATE,
         )
@@ -476,7 +483,8 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
         return GuardrailResult(
             triggered=True,
             type="returns",
-            message="I cannot provide performance or returns data. Please refer to the official HDFC factsheet.",
+            title="I can't share returns or performance.",
+            message="Please check the official HDFC factsheet for this information.",
             source_url=HDFC_FACTSHEET_URL,
             fetched_date=TODAY_DATE,
         )
@@ -500,7 +508,8 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
         return GuardrailResult(
             triggered=True,
             type="live_data",
-            message="I don't have live data such as today's NAV. Please check the scheme page for the latest value.",
+            title=None,
+            message="I don't have live data, such as today's NAV. Please check the fund's page for the latest value.",
             source_url=source_url,
             fetched_date=TODAY_DATE,
         )
@@ -510,7 +519,8 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
         return GuardrailResult(
             triggered=True,
             type="plan_type",
-            message="My data covers only the Direct Plan - Growth option of these 5 HDFC schemes.",
+            title=None,
+            message="My information covers only the Direct Plan (Growth option) of these 5 funds.",
             source_url="",
             fetched_date="",
         )
@@ -520,7 +530,8 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
         return GuardrailResult(
             triggered=True,
             type="out_of_scope",
-            message="I only cover 5 HDFC Mutual Fund schemes: Large Cap, Flexi Cap, ELSS Tax Saver, Small Cap, and Balanced Advantage.",
+            title=None,
+            message="I can only answer questions about these 5 HDFC funds: Large Cap, Flexi Cap, ELSS Tax Saver, Small Cap and Balanced Advantage.",
             source_url="",
             fetched_date="",
         )
@@ -532,7 +543,8 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
         return GuardrailResult(
             triggered=True,
             type="clarify",
-            message="I cover 5 HDFC Mutual Fund schemes: Large Cap, Flexi Cap, ELSS Tax Saver, Small Cap, and Balanced Advantage. Please mention one, for example: 'What is the AUM of HDFC Large Cap Fund?'",
+            title=None,
+            message="I can help with 5 HDFC funds: Large Cap, Flexi Cap, ELSS Tax Saver, Small Cap and Balanced Advantage. Which one would you like to know about? For example: \"What is the AUM of HDFC Large Cap Fund?\"",
             source_url="",
             fetched_date="",
         )
@@ -540,6 +552,7 @@ def check_guardrails(question: str, explicit_scheme: str | None = None) -> Guard
     return GuardrailResult(
         triggered=False,
         type=None,
+        title=None,
         message="",
         source_url="",
         fetched_date="",

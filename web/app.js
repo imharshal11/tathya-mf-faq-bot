@@ -584,7 +584,7 @@
     try {
       const guardrail = data.debug?.guardrail;
       const isGuardrail = ['advisory', 'returns', 'pii', 'clarify', 'out_of_scope', 'greeting', 'thanks', 'live_data', 'plan_type'].includes(guardrail);
-      const isNotFound = data.answer?.includes('Not in the knowledge base') || data.answer?.includes('not found');
+      const isNotFound = data.answer?.includes('Not in the knowledge base') || data.answer?.includes('not found') || data.answer?.includes('I don\'t have that information yet');
       const isRefusal = guardrail === 'advisory' || guardrail === 'returns' || guardrail === 'pii';
       const isNeutral = guardrail === 'greeting' || guardrail === 'thanks' || guardrail === 'clarify' || guardrail === 'live_data' || guardrail === 'plan_type' || guardrail === 'out_of_scope' || isNotFound;
 
@@ -612,7 +612,7 @@
           // Refusal card (peach #FFF4E5)
           articleHtml = `
             <article class="refusal-card" role="alert">
-              <p class="answer-title">${escapeHtml(title || "I can't give investment advice.")}</p>
+              ${title ? `<p class="answer-title">${escapeHtml(title)}</p>` : ''}
               <p class="answer-text">${escapeHtml(data.answer)}</p>
               ${hasSourceUrl ? `
                 <a class="learn-more" href="${escapeHtml(data.source_url)}" target="_blank" rel="noopener">Learn more</a>
@@ -623,6 +623,7 @@
           // Info card (same shape/bg as answer-card)
           articleHtml = `
             <article class="info-card" role="status">
+              ${title ? `<p class="answer-title">${escapeHtml(title)}</p>` : ''}
               <p class="answer-text">${escapeHtml(data.answer)}</p>
               ${hasSourceUrl ? `
                 <a class="learn-more" href="${escapeHtml(data.source_url)}" target="_blank" rel="noopener">Learn more</a>

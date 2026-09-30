@@ -54,19 +54,23 @@ A Retrieval-Augmented Generation (RAG) chatbot that answers factual questions ab
 ### Retrieval Pipeline
 
 1. **Guardrails (run first):**
-   - **PII:** PAN, Aadhaar, account numbers, OTP, email, phone, passwords. Refused, not stored.
-   - **Advice:** "should I buy / sell / invest", "which is better", "recommend", "best fund". Refused with an AMFI investor education link.
-   - **Returns / performance:** "returns", "past performance", "how much return", "CAGR", "NAV history". Refused with the official HDFC factsheet link.
+   - **PII:** PAN, Aadhaar, account numbers, OTP, email, phone, passwords. Refused, not stored. Title: "Please don't share personal details."
+   - **Advice:** "should I buy / sell / invest", "which is better", "recommend", "best fund". Refused with an AMFI investor education link. Title: "I can't give investment advice."
+   - **Returns / performance:** "returns", "past performance", "how much return", "CAGR", "NAV history". Refused with the official HDFC factsheet link. Title: "I can't share returns or performance."
+   - **Live data:** "NAV", "today", "current price", "live", "right now". Refused with fund page link.
+   - **Plan type:** "regular plan", "IDCW", "dividend". Clarifies only Direct Plan (Growth option) covered.
+   - **Other funds/AMCs:** Other AMCs or HDFC schemes not in the 5. Refused.
+   - **Clarify:** Asks scheme-level fact without naming a fund. Asks user to specify.
    - A guardrail hit skips retrieval and the LLM entirely.
 2. **Scheme filter:** Detects the fund in the question ("large cap", "flexi cap" / "equity fund", "elss" / "tax saver", "small cap", "balanced advantage" / "baf") and searches only that fund's chunks.
 3. **Retrieve:** Embed the question with the same model and fetch the top 6 chunks (`TOP_K=6`).
-4. **Score gate:** If the best similarity is below `0.55` (`SCORE_THRESHOLD`), reply "Not in the knowledge base".
+4. **Score gate:** If the best similarity is below `0.55` (`SCORE_THRESHOLD`), reply "I don't have that information yet. Try asking about the expense ratio, exit load, minimum SIP, lock-in period, riskometer, benchmark or fund managers."
 5. **Generate:** Groq writes a short answer using only the retrieved chunks: max 3 sentences, no advice, no returns, no URLs, or `NOT_FOUND` if the chunks don't contain the answer.
 6. **Cite:** Code (not the LLM) attaches `source_url` and `fetched_date` from the top chunk's metadata.
 7. **Fallback:** If the Groq call fails (error, timeout, missing key), the best 1-3 sentences from the top chunk are returned instead.
 8. **Safety net:** If Groq replies `NOT_FOUND` but the top match scores 0.80 or higher, the fact sentence from that chunk is returned instead, since such a strong match clearly contains the answer.
 
-**Response format:** `{ answer, source_url, fetched_date, debug }`
+**Response format:** `{ answer, title, source_url, fetched_date, debug }`
 
 ## Chunking Strategy
 
@@ -130,14 +134,14 @@ The assistant handles the following categories of user questions:
 | **Name variants** | Recognizes common aliases: "HDFC Top 100" → Large Cap, "HDFC Tax Saver" → ELSS, "BAF" → Balanced Advantage | "Who manages BAF?" |
 | **All funds / comparison** | Returns a compact list for all 5 funds when asked "all", "each", "lowest", "highest" | "What are the expense ratios of all funds?" |
 | **Definitions** | Explains mutual fund concepts from the knowledge base | "What is expense ratio?" |
-| **PII protection** | Refuses questions containing PAN, Aadhaar, email, phone, OTP, passwords | "My PAN is ABCDE1234F" |
-| **Advisory refusal** | Declines investment advice, recommendations, "which is better" | "Should I buy HDFC Large Cap?" |
-| **Returns refusal** | Declines performance/returns questions | "What are the returns of HDFC Small Cap?" |
-| **Live data refusal** | Declines NAV/current price queries, directs to scheme page | "What is today's NAV of HDFC Flexi Cap?" |
-| **Plan type clarification** | Notes that only Direct Plan - Growth data is available | "What about the regular plan?" |
+| **PII protection** | Refuses questions containing PAN, Aadhaar, email, phone, OTP, passwords. Title: "Please don't share personal details." | "My PAN is ABCDE1234F" |
+| **Advisory refusal** | Declines investment advice, recommendations, "which is better". Title: "I can't give investment advice." | "Should I buy HDFC Large Cap?" |
+| **Returns refusal** | Declines performance/returns questions. Title: "I can't share returns or performance." | "What are the returns of HDFC Small Cap?" |
+| **Live data refusal** | Declines NAV/current price queries, directs to fund page | "What is today's NAV of HDFC Flexi Cap?" |
+| **Plan type clarification** | Notes that only Direct Plan (Growth option) data is available | "What about the regular plan?" |
 | **Out-of-scope funds** | Declines other AMCs or HDFC schemes not in the 5 | "What about SBI Large Cap Fund?" |
-| **Greetings / help** | Friendly intro with example questions | "Hi", "What can you do?" |
-| **Clarification** | Asks user to specify a fund when a scheme-level fact is asked without naming one | "What is the expense ratio?" |
+| **Greetings / help** | Friendly intro with example questions. Title: none. | "Hi", "What can you do?" |
+| **Clarification** | Asks user to specify a fund when a scheme-level fact is asked without naming one. Title: none. | "What is the expense ratio?" |
 
 ## Deployment
 
@@ -155,7 +159,7 @@ The assistant handles the following categories of user questions:
 - **No performance data** (returns, CAGR, NAV history). Such questions are refused with a link to HDFC factsheets.
 - **Capital-gains statement download steps are not covered**, since they are not in the 5 source pages.
 - **No live data** (current NAV, prices).
-- **Covers 5 schemes, Direct Plan - Growth only; no live NAV; AMC-level totals not included.**
+- **Covers 5 schemes, Direct Plan (Growth option) only; no live NAV; AMC-level totals not included.**
 - **Single-session browser chat**, no chat history saved, no login.
 - **Groq free tier has daily rate limits.** If exceeded, answers use the extractive fallback.
 - Extra resource for investors: https://investor.sebi.gov.in/iematerial.html

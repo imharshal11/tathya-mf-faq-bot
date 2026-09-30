@@ -76,7 +76,9 @@ The following 10 queries were run against the live API at `http://127.0.0.1:8000
 
 ## 8. Should I buy HDFC Small Cap Fund?
 
-**Answer:** I cannot provide investment advice. For investor education, please visit AMFI's Mutual Funds Sahi Hai.
+**Title:** I can't give investment advice.
+
+**Answer:** I share facts only. To learn more about investing, visit AMFI's Mutual Funds Sahi Hai.
 
 **Source:** https://www.mutualfundssahihai.com/en
 
@@ -88,7 +90,9 @@ The following 10 queries were run against the live API at `http://127.0.0.1:8000
 
 ## 9. My PAN is ABCDE1234F
 
-**Answer:** Please do not share personal information (PAN, Aadhaar, account numbers, OTP, email, phone, passwords).
+**Title:** Please don't share personal details.
+
+**Answer:** For your safety, never share your PAN, Aadhaar, account number, OTP, email, phone number or password.
 
 **Source:** https://www.mutualfundssahihai.com/en
 
@@ -100,7 +104,9 @@ The following 10 queries were run against the live API at `http://127.0.0.1:8000
 
 ## 10. What were the past returns of HDFC Large Cap Fund?
 
-**Answer:** I cannot provide performance or returns data. Please refer to the official HDFC factsheet.
+**Title:** I can't share returns or performance.
+
+**Answer:** Please check the official HDFC factsheet for this information.
 
 **Source:** https://www.hdfcfund.com/mutual-funds/factsheets
 
