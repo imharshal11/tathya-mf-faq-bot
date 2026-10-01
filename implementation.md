@@ -1,351 +1,258 @@
-# Implementation guide (phase-wise)
+# Implementation guide (as built)
 
-Use this file to drive Cursor **one phase at a time**. Do not ask it to "build the whole app." After each phase, run the **Done when** checks yourself, then paste the next **Cursor prompt**.
+How Tathya is implemented today, module by module. Use it to understand — or safely change — one part of the pipeline at a time. The project brief is `problem_statement.md`; the design is `architecture.md`.
 
-**Always attach:** `problem_statement.md` (source of truth). `architecture.md` follows it.
+**Rules when changing anything**
 
-**Rules for every phase**
-
-- Follow `architecture.md` layout, stack, and API shapes. No LLM APIs, no API keys, no Groww APIs, no auth, no scraping.
-- Stay inside this phase's file list. Do not start the next phase's work early.
-- After coding, tell Cursor to run the phase verification commands and fix failures before stopping.
+- Never weaken the four safety layers, never lower `SCORE_THRESHOLD` (0.55) or `NOT_FOUND_OVERRIDE_THRESHOLD` (0.80) to make a test pass, never delete eval rows to make them pass.
+- `.env` and `corpus/` are not part of a code change (`.env` is gitignored, `corpus/` is a frozen 27 Sep 2026 snapshot).
+- After a change, run the eval (see §12) and fix failures before committing.
 
 ---
 
-## How to run a phase
+## 1. Repo layout
 
-1. Open a new Cursor chat (or `/clear`) so prior phases do not pull in extra scope.
-2. Paste the **Cursor prompt** for that phase.
-3. `@`-mention `architecture.md` and `implementation.md`.
-4. When Cursor finishes, execute **Done when**. Only then start the next phase.
-
----
-
-## Phase 6 — Corpus (5 HDFC scheme files)
-
-**Goal:** Create 5 curated markdown files in `corpus/`, one per scheme from `problem_statement.md` table.
-
-**Create / fill**
-
-- `corpus/hdfc-large-cap.md` — content from https://groww.in/mutual-funds/hdfc-large-cap-fund-direct-growth
-- `corpus/hdfc-flexi-cap.md` — content from https://groww.in/mutual-funds/hdfc-equity-fund-direct-growth
-- `corpus/hdfc-elss.md` — content from https://groww.in/mutual-funds/hdfc-elss-tax-saver-fund-direct-plan-growth
-- `corpus/hdfc-small-cap.md` — content from https://groww.in/mutual-funds/hdfc-small-cap-fund-direct-growth
-- `corpus/hdfc-balanced-advantage.md` — content from https://groww.in/mutual-funds/hdfc-balanced-advantage-fund-direct-growth
-
-**Method:** One-time fetch allowed using `requests` + `BeautifulSoup` to retrieve the 5 pages. Save raw HTML to `corpus/raw_*.html` for reference. Then extract factual sections and write clean markdown. **No runtime scraping** — this is a one-time corpus build step.
-
-Each file must include a front-matter comment with `scheme_name`, `category`, `source_url`, `fetched_date` (today's date). Body: include **only sections whose facts are actually present on the page** (e.g., expense ratio, exit load, minimum SIP, ELSS lock-in where applicable, riskometer, benchmark, factsheet/fee page references). Do not invent a "statement download" section if the page doesn't have it. If a page can't be fetched or a field is missing, report it and leave it out. Fallback: if fetching fails, paste raw page text into `corpus/raw_*.txt` and clean manually.
-
-**Do not**
-
-- Write ingestion code
-- Scrape at runtime
-- Add extra schemes or AMCs
-- Invent data not on the page
-
-**Done when**
-
-```text
-ls corpus/
-# Shows 5 .md files + optional raw_*.html
-head -20 corpus/hdfc-large-cap.md
-# Shows front-matter + factual content (only sections found on page)
 ```
-
-### Cursor prompt — Phase 6
-
-```text
-Implement Phase 6 only from implementation.md. Read architecture.md sections 3, 4, 5.4, and problem_statement.md §4.
-
-Create 5 markdown files in corpus/ for the 5 HDFC schemes listed in problem_statement.md:
-- hdfc-large-cap.md
-- hdfc-flexi-cap.md
-- hdfc-elss.md
-- hdfc-small-cap.md
-- hdfc-balanced-advantage.md
-
-One-time fetch allowed with requests + BeautifulSoup. Save raw HTML to corpus/raw_*.html. Extract only factual sections actually present on each page (expense ratio, exit load, minimum SIP, ELSS lock-in if applicable, riskometer, benchmark, factsheet refs). Do NOT require "statement download" in each file. Front-matter: scheme_name, category, source_url, fetched_date. If a page fails or field missing, report and skip — fallback: paste raw text to corpus/raw_*.txt and clean manually.
-
-Do not write any Python code for ingest. Do not implement retrieve, or API.
-Stop after listing the 5 files created and showing one file's head.
+src/
+  common.py       # singletons (Chroma client, ONNX embeddings, Groq client) + thresholds
+  ingest.py       # corpus -> heading chunks -> ChromaDB (CLI: python -m src.ingest)
+  retrieve.py     # scheme detect, fact headings, heading preference, top-k search
+  guardrails.py   # Layer 1: PII, greeting/thanks, advice, returns, live data, plan type, other funds, clarify
+  intent.py       # Layer 2: one short Groq call that labels ambiguous questions
+  generate.py     # Groq answer prompt + extractive fallback
+  api.py          # FastAPI routes, pipeline order, Layer 3 + Layer 4, safety net
+web/
+  index.html, styles.css, app.js   # Chat / Funds / About UI
+tests/
+  eval_questions.csv, last_failed.txt
+scripts/
+  run_eval.py     # evaluation runner
+corpus/           # 6 markdown files (5 funds + mf-basics)
+data/chroma/      # vector store (gitignored)
 ```
 
 ---
 
-## Phase 7 — Chunking + ingest
+## 2. Ingestion — `src/ingest.py`
 
-**Goal:** `src/ingest.py` loads `corpus/`, chunks with overlap, embeds with local all-MiniLM-L6-v2, rebuilds Chroma at `data/chroma/`.
+Run: `python -m src.ingest` (or `POST /index`). Always a **full rebuild**: the collection is dropped and recreated.
 
-**Create**
+1. Load every `corpus/*.md` and parse the HTML-comment front matter: `scheme_name`, `category`, `source_url`, `fetched_date`.
+2. Strip the front matter, split the body by `##` headings. One heading = one chunk, prefixed with its heading ("Expense Ratio: …").
+3. The `## FAQs` section is special: each `- Q: … A: …` pair becomes its own chunk with heading `FAQ`.
+4. ChromaDB embeds the texts automatically with `ONNXMiniLM_L6_V2` (`all-MiniLM-L6-v2` in ONNX, CPU) and stores them with metadata: `chunk_id`, `scheme_name`, `category`, `source_url`, `fetched_date`, `heading`.
 
-- `src/ingest.py` — CLI entry: `python -m src.ingest`
-  - Load all `.md` from `CORPUS_PATH`
-  - Parse front-matter for `scheme_name`, `category`, `source_url`, `fetched_date`
-  - Chunk body text: recursive character splitter (strategy chosen after inspecting Phase 6 corpus; reason documented in README)
-  - Embed with `sentence-transformers/all-MiniLM-L6-v2` (local, no API)
-  - **Delete and rebuild** Chroma collection at `CHROMA_PATH`
-  - Metadata per vector: `chunk_id`, `scheme_name`, `category`, `source_url`, `fetched_date`, `text`
-  - Print file count, chunk count, persist path
-- `POST /index` in `src/api.py` calls the same rebuild function
-- `requirements.txt` additions: `chromadb`, `sentence-transformers`, `python-dotenv`
-
-**Do not**
-
-- Call any LLM
-- Build UI
-- Incremental upsert logic
-
-**Done when**
-
-```text
-.venv\Scripts\pip install -r requirements.txt
-.venv\Scripts\python -m src.ingest
-```
-
-- `data/chroma/` exists and is gitignored
-- Re-running ingest succeeds (full rebuild)
-- Inspect collection: chunk IDs present, metadata includes scheme_name, category, source_url, fetched_date
-
-### Cursor prompt — Phase 7
-
-```text
-Implement Phase 7 only from implementation.md. Read architecture.md sections 3, 4, 5.4, 8, 11, and problem_statement.md.
-
-Build src/ingest.py and wire POST /index:
-- Load corpus/*.md, parse front-matter for scheme_name, category, source_url, fetched_date
-- Chunk with recursive character splitter (strategy chosen after inspecting Phase 6 corpus; reason in README)
-- Embed with sentence-transformers/all-MiniLM-L6-v2 (local)
-- Full rebuild Chroma at CHROMA_PATH
-- Metadata: chunk_id, scheme_name, category, source_url, fetched_date, text
-- CLI: python -m src.ingest prints file count, chunk count, persist path
-- POST /index calls same function
-- Update requirements.txt
-
-Do not implement retrieve, generate, guardrails, or any frontend.
-Do not commit .env or data/chroma.
-Stop after ingest runs successfully and summarizes chunk counts per scheme.
-```
+Current corpus: **113 chunks** (Large Cap 20, Flexi Cap 20, ELSS 21, Small Cap 20, Balanced Advantage 20, mf-basics 12).
 
 ---
 
-## Phase 8 — Answers + guardrails + chat API
+## 3. `POST /chat` pipeline — strict order
 
-**Goal:** `POST /chat` implements architecture §5.3 and §6. Guardrails first, then retrieve, then Groq generates answer from top chunks. Fallback to extractive ONLY on Groq call failure (error, timeout, missing key). If Groq returns "NOT_FOUND", return "Not in the knowledge base" (no fallback).
+Implemented in `src/api.py::post_chat`. Every step must run in this order; a hit at any step returns immediately.
 
-**Create**
+```
+PII
+ -> identity / greeting / thanks
+ -> Layer 1 keyword guardrails
+ -> Layer 2 AI intent check (ambiguous questions only)
+ -> retrieval (heading preference + fund-name augmentation)
+ -> score gate (0.55)
+ -> Groq answer
+ -> Layer 3 answer check
+ -> Layer 4 number check
+ -> safety net (0.80)
+```
 
-- `src/guardrails.py`
-  - `check_pii(text)` → bool + matched pattern (PAN, Aadhaar, account, OTP, email, phone, password)
-  - `check_advisory(text)` → bool (phrases: "should I buy", "should I sell", "should I invest", "which is better", "recommend", "best fund"). Do NOT block plain "buy" or "invest in" (e.g., "minimum amount to invest in HDFC ELSS" must work).
-  - `check_returns(text)` → bool (phrases: "returns", "past performance", "how much return", "CAGR", "NAV history"). Do NOT block "growth" (appears in every scheme name).
-  - Refusal messages with educational links:
-    - Advisory: "I cannot provide investment advice. For investor education, visit AMFI: https://www.mutualfundssahihai.com/en"
-    - Returns: "I cannot provide performance data. Refer to the official factsheet: https://www.hdfcfund.com/mutual-funds/factsheets"
-    - PII: "Please do not share personal information (PAN, Aadhaar, account numbers, OTP, email, phone, passwords)."
-- `src/retrieve.py`
-  - `retrieve(query, top_k, threshold)` → list of (chunk_dict, score)
-  - Detect scheme in query (keywords: "large cap", "flexi cap", "elss", "small cap", "balanced advantage" — case-insensitive). If found, filter Chroma by `scheme_name` metadata before search.
-  - Embed query with same local model
-  - Chroma similarity search (with optional where-filter), normalize scores so higher = better
-  - Return empty list if best score < threshold
-- `src/generate.py`
-  - `generate_answer(chunks, question)` → answer string from Groq
-    - Build prompt: chunks + question, with rules (answer only from chunks, max 3 sentences, no advice, no returns/performance numbers, never output URLs, reply "NOT_FOUND" if chunks don't contain answer)
-    - Call Groq API (`GROQ_API_KEY`, `GROQ_MODEL` from `.env`, temperature 0)
-    - Return Groq response or raise on failure
-  - `extract_answer(chunk_text, question)` → 1-3 sentences from chunk (fallback heuristic: split into sentences, rank by keyword overlap with question, take top 3)
-- `POST /chat` in `src/api.py`
-  - Body: `{ "question": "..." }`
-  - Pipeline: guardrails → retrieve → score gate → Groq generate → handle response
-  - Response handling:
-    - Groq returns "NOT_FOUND" → return "Not in the knowledge base" + debug (no fallback)
-    - Groq call fails (exception, timeout, missing `GROQ_API_KEY`) → call `extract_answer` on top chunk, attach metadata, set `debug.fallback: true`
-    - Groq returns answer → attach `source_url` + `fetched_date` from top chunk metadata
-  - Response shape exactly as architecture §10:
-    ```json
-    {
-      "answer": "...",
-      "source_url": "...",
-      "fetched_date": "...",
-      "debug": { "threshold_passed": true, "matches": [...], "guardrail": null, "fallback": false }
-    }
-    ```
-  - Guardrail hit → refusal answer + educational `source_url` + `fetched_date` + `debug.guardrail`
-  - Low similarity → "Not in the knowledge base" + `debug.threshold_passed: false` + matches
-  - Missing index → 503 with message
+### Step 1 — PII (`guardrails.check_pii`)
 
-**Do not**
+Regex patterns for PAN, Aadhaar, account numbers, OTP, email, phone, password. First check in the pipeline. Returns:
 
-- Query rewrite (out of scope)
-- Chat UI / debug panel (Phase 9)
-- Streaming
+- title: "Please don't share personal details."
+- answer: "For your safety, never share your PAN, Aadhaar, account number, OTP, email, phone number or password."
+- `source_url`: AMFI link, `debug.guardrail: "pii"`.
 
-**Done when** (with index built)
+### Step 2 — Identity / greeting / thanks (`check_identity`, `check_greeting`, `check_thanks`)
 
-```text
-curl -X POST http://127.0.0.1:8000/chat -H "Content-Type: application/json" -d "{\"question\": \"What is the expense ratio of HDFC Large Cap Fund?\"}"
-# Returns answer + source_url + fetched_date + debug.threshold_passed: true
+Short friendly replies, before retrieval and before any AI call. Greetings and thanks only trigger on messages of ~5 words that name no fund and contain no fund-fact keyword (so "exit load?" is never treated as "hi").
 
+- Identity/greeting → "Hi! I'm Tathya. Ask me a fact about any of 5 HDFC mutual funds…" (`guardrail: "greeting"`).
+- Thanks → "You're welcome! Ask me anything else about the 5 HDFC funds." (`guardrail: "thanks"`).
+
+### Step 3 — Layer 1 keyword guardrails (`guardrails.check_guardrails`)
+
+| # | Check | Trigger examples | Reply (`debug.guardrail`) |
+|---|-------|------------------|---------------------------|
+| 1 | Advice keywords | "shall i buy", "can i invest", "worth buying", "buy or not", "best fund" | Advice refusal + AMFI link (`advisory`) |
+| 2 | Advice phrases | "should I buy", "which is better", "recommend", "is it safe" | same as above |
+| 3 | Returns | "returns", "past performance", "CAGR", "NAV history", "profit" | Returns refusal + HDFC factsheet link (`returns`) |
+| 4 | Live data | "NAV", "today", "current price", "live", "right now" | "I don't have live data…" + fund page link (`live_data`) |
+| 5 | Plan type | "regular plan", "IDCW", "dividend" | "…only the Direct Plan (Growth option)…" (`plan_type`) |
+| 6 | Other funds | "sbi", "icici", "hdfc mid cap fund", … | "I can only answer questions about these 5 HDFC funds…" (`out_of_scope`) |
+| 7 | Clarify | a fact keyword with no fund named ("What is the expense ratio?") | "I can help with 5 HDFC funds… Which one?" (`clarify`) |
+
+Notes:
+
+- **How-to exception:** "How can I invest via SIP in HDFC ELSS?" must *not* trigger the advice check — the keyword check exempts questions containing "how" together with "sip", "lump sum", "minimum" or "via".
+- **Benchmark exception:** "benchmark" / "performance benchmark" must not trigger the returns check.
+- A guardrail hit skips retrieval, the intent check and Groq entirely.
+
+### Step 4 — Layer 2 AI intent check (`intent.classify_intent`)
+
+Only reached when no keyword guardrail fired.
+
+1. Clear fact questions skip the AI call: if the question contains a fund-fact keyword (expense ratio, exit load, sip, minimum, aum, manager, risk, benchmark, lock-in, …, "what is", "how to"), `intent = "FACT"` and `debug.intent = "skipped"`. This keeps common questions fast and inside Groq free-tier limits.
+2. Otherwise one short Groq call (`src/intent.py`, same `GROQ_MODEL`, temperature 0, `max_tokens 60`, `reasoning_effort low`) labels the question:
+   - **FACT** → continue to retrieval
+   - **ADVICE** → advice refusal (`guardrail: "advisory"`, `debug.intent: "ADVICE"`)
+   - **RETURNS** → returns refusal (`guardrail: "returns"`)
+   - **OFF_TOPIC** → "I can only answer questions about these 5 HDFC funds…" (`guardrail: "out_of_scope"`)
+   - **NONSENSE** → "I don't have that information yet…" (`guardrail: "not_found"`)
+3. Keyword fast paths inside `classify_intent` catch what the model often misses (personal tax planning, Hinglish advice, obvious off-topic, gibberish) before the API call.
+4. Any error or unknown label falls back to `"FACT"` (`debug.intent: "error"`) — the pipeline never crashes.
+
+The active fund (`auto_detected_scheme` or the request's `scheme`) is included in the prompt so follow-ups like "can I buy it?" are understood.
+
+### Step 5 — Retrieval (`retrieve.retrieve_chunks`)
+
+Before retrieval, `api.py` resolves the **active fund**: a fund detected from the question text, else the request's `scheme` (only if it is one of the 5 valid names).
+
+- **Fund-name augmentation (follow-ups):** if a fund is active *and* the question contains a fund-fact keyword, the fund's short name is appended to the query: `"What is the AUM?"` → `"What is the AUM? HDFC Small Cap Fund"`. Otherwise the question is retrieved exactly as asked.
+- **Heading preference:** if the question maps to a fact heading (`get_fact_heading`: "expense ratio" → `Expense Ratio`, "sip" → `Minimum SIP`, …) and a fund is known, search `{scheme_name, heading}` first. If nothing scores ≥ 0.55, fall back to a fund-only search.
+- **All-funds queries** ("all", "each", "lowest", "highest", "compare"): `retrieve_all_funds_fact` fetches the same heading from each of the 5 funds (1 chunk each), and `api.py` builds a compact list — including a lowest/highest sort when asked.
+- **Definitional queries** ("What is SIP?") with no fund search the `Mutual Fund Basics` scheme (`mf-basics.md`).
+- Scores are cosine distances converted to similarity (`1 - distance`); only chunks ≥ `SCORE_THRESHOLD` are returned.
+
+### Step 6 — Score gate (0.55)
+
+No chunk above 0.55 → no LLM call. Reply:
+
+> "I don't have that information yet. Try asking about the expense ratio, exit load, minimum SIP, lock-in period, riskometer, benchmark or fund managers."
+
+with empty `source_url` / `fetched_date` and `debug.threshold_passed: false`.
+
+### Step 7 — Groq answer (`generate.generate_answer`)
+
+The top chunk (plus, for exit-load questions, a light text normalization that removes "will be charged for redemption/sale" phrasing) is sent with the question. System prompt rules (`src/generate.py`):
+
+- answer only from the provided chunk, no external knowledge; max 2 sentences
+- no advice; no returns or performance numbers; never output URLs
+- fund name with plan in brackets; keep every source condition exactly (e.g. "for units above 15% of the investment")
+- answer only the fact asked, using the first (most relevant) chunk
+- reply exactly `NOT_FOUND` if the chunk does not contain the answer
+
+Call parameters: `temperature 0`, `max_tokens 800`, `reasoning_effort low` (with a `reasoning_format="hidden"` attempt that falls back if unsupported).
+
+**If the call fails** (error, timeout, missing `GROQ_API_KEY`): `generate.extract_answer` returns the best 1–3 sentences from the top chunk by keyword overlap, wording is normalized the same way, and `debug.fallback: true`.
+
+### Step 8 — Layer 3 answer check (`api.py`)
+
+Scan the generated answer for advice language: "you should", "i recommend", "we recommend", "good investment", "worth investing", "yes, you can buy", "yes, you can invest", "suitable for you", "consider investing", "will rise", "will grow", "good choice", "safe bet".
+
+- Hit → answer replaced by "I share facts only…", `title` becomes "I can't give investment advice.", `debug.answer_check: "blocked"`.
+- Clean → `debug.answer_check: "ok"`.
+
+### Step 9 — Layer 4 number check (`api.py`)
+
+Find every number in the answer (percentages, ₹ amounts, "N years/crore/lakh", 4-digit years). Each one must appear in the top chunk's text after normalizing commas and spaces.
+
+- Any number missing → answer replaced by the extractive sentence from the source chunk, `debug.number_check: "fallback"`.
+- All present → `debug.number_check: "ok"`.
+
+### Step 10 — Safety net (0.80)
+
+- Groq returned `NOT_FOUND` and top score ≥ `0.80` → return the extractive fact sentence from that chunk with `debug.not_found_override: true` (a match that strong clearly contains the answer).
+- Groq returned `NOT_FOUND` below 0.80 → the standard "I don't have that information yet…" reply.
+
+**Finally:** wording normalization ("redeemed" → "sold", "redemption" → "sale") and metadata attach — `source_url` and `fetched_date` come from the top chunk's metadata (formatted "27 Sep 2026"), never from the model.
+
+---
+
+## 4. API contract
+
+| Method | Path | Body / returns |
+|--------|------|----------------|
+| `POST` | `/chat` | `{ "question": str, "scheme": str\|null }` → `{ answer, title, source_url, fetched_date, debug }` |
+| `GET` | `/funds` | key facts for the 5 funds, parsed from `corpus/` (expense ratio, exit load, min SIP, lock-in, riskometer, benchmark, AUM, fund managers, source URL, date) |
+| `GET` | `/health` | `{ ok, index_exists }` |
+| `POST` | `/index` | full index rebuild |
+| `GET` | `/` | the UI |
+
+`scheme` must be one of the 5 full scheme names (the UI sends it); anything else is treated as null. Guardrail replies carry their own `title` (or null) and may have an empty `source_url`.
+
+---
+
+## 5. UI — `web/`
+
+Vanilla HTML/CSS/JS, no build step. FastAPI serves it at `/` together with `/styles.css`, `/app.js` and `/brand/*`.
+
+- **Views:** Chat / Funds / About — top nav pill on tablet & desktop, bottom nav on mobile.
+- **Chat:** posts `{question, scheme}` to `/chat`; renders answer, one source link, "Last updated from sources: [date]", guardrail titles, and opens the **Source facts panel** (fund facts from `GET /funds` + "Open source page" + disclaimer).
+- **Funds:** cards for all 5 funds from `GET /funds` with key facts, **Ask about this fund** (selects the fund, returns to the composer) and a source link.
+- **About:** what Tathya does / does not do, funds covered, sources with data date, disclaimer, credits (LinkedIn / GitHub).
+- **Fund memory:** the selected fund is stored in UI state and sent as `scheme` on every `/chat` request, so follow-ups like "What is the exit load?" answer for the right fund.
+- Responsive breakpoints: dedicated mobile shell (home / chat / funds screens) vs. desktop workspace (sidebar / chat / source panel).
+
+---
+
+## 6. Evaluation — `tests/` + `scripts/run_eval.py`
+
+`tests/eval_questions.csv` — columns `question, expected_type, must_contain, scheme, must_not_contain`.
+
+- **128 questions**, of which **31 are adversarial** (advice traps, jailbreaks, PII, gibberish, off-topic, look-alike funds) — all passing.
+- `expected_type` is matched against `debug.guardrail` (or `not_found` / `answer`), plus optional `must_contain` / `must_not_contain` text checks on `title + answer`.
+
+```powershell
+.\.venv\Scripts\python scripts\run_eval.py                     # full run (128)
+.\.venv\Scripts\python scripts\run_eval.py --quick             # 2-3 rows per expected type
+.\.venv\Scripts\python scripts\run_eval.py --failed            # re-run rows in tests/last_failed.txt
+.\.venv\Scripts\python scripts/run_eval.py --only "exit load"  # filter by question text
+```
+
+The runner uses FastAPI's `TestClient` (in-process — no server needed), waits ~6s between questions for Groq free-tier limits, retries 429s after 30s, and writes failed row numbers to `tests/last_failed.txt`.
+
+---
+
+## 7. Configuration
+
+`.env` (gitignored, see `.env.example`):
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `GROQ_API_KEY` | Groq key (required for the LLM steps; extractive fallback without it) | — |
+| `GROQ_MODEL` | Groq model | `openai/gpt-oss-20b` |
+| `CHROMA_PATH` | Vector store | `data/chroma` |
+| `CORPUS_PATH` | Corpus folder | `corpus` |
+| `COLLECTION_NAME` | Collection | `mf_faq` |
+| `TOP_K` | Retrieval k (the chat route passes 1 explicitly) | `1` |
+| `SCORE_THRESHOLD` | Score gate — do not lower | `0.55` |
+| `NOT_FOUND_OVERRIDE_THRESHOLD` | Safety net for `NOT_FOUND` — do not lower | `0.80` |
+
+---
+
+## 8. Verifying a change
+
+```powershell
+# rebuild the index (only if corpus or chunking changed)
+.\.venv\Scripts\python -m src.ingest
+
+# smoke test
+.\.venv\Scripts\python scripts\run_eval.py --quick
+
+# full suite — must stay 128/128
+.\.venv\Scripts\python scripts\run_eval.py
+
+# manual spot checks (against the running app)
+curl -X POST http://127.0.0.1:8000/chat -H "Content-Type: application/json" -d "{\"question\": \"What is the exit load of HDFC Balanced Advantage Fund?\"}"
 curl -X POST http://127.0.0.1:8000/chat -H "Content-Type: application/json" -d "{\"question\": \"Should I buy HDFC ELSS?\"}"
-# Returns advisory refusal + AMFI link + debug.guardrail: "advisory"
-
-curl -X POST http://127.0.0.1:8000/chat -H "Content-Type: application/json" -d "{\"question\": \"What was the return last year?\"}"
-# Returns returns refusal + factsheet link + debug.guardrail: "returns"
-
-curl -X POST http://127.0.0.1:8000/chat -H "Content-Type: application.json" -d "{\"question\": \"My PAN is ABCDE1234F\"}"
-# Returns PII refusal + debug.guardrail: "pii"
+curl http://127.0.0.1:8000/funds
 ```
 
-### Cursor prompt — Phase 8
-
-```text
-Implement Phase 8 only from implementation.md. Read architecture.md sections 5.2, 5.3, 6, 7, 8, 9, 10, 12.
-
-Add src/guardrails.py, src/retrieve.py, src/generate.py and POST /chat.
-Pipeline order is mandatory: guardrails → retrieve → score gate → Groq generate → handle response.
-Guardrails: PII regex, advisory phrases ("should I buy", "should I sell", "should I invest", "which is better", "recommend", "best fund" — NOT plain "buy"/"invest in"), returns phrases ("returns", "past performance", "how much return", "CAGR", "NAV history" — NOT "growth"). Refusals include educational URLs (AMFI: mutualfundssahihai.com/en, HDFC factsheet: hdfcfund.com/mutual-funds/factsheets).
-Retrieve: local embeddings, Chroma top-k, score threshold. Detect scheme in query ("large cap", "flexi cap", "elss", "small cap", "balanced advantage") and filter by scheme_name metadata.
-Generate: src/generate.py calls Groq (GROQ_API_KEY, GROQ_MODEL from .env, temperature 0) with prompt rules (answer only from chunks, max 3 sentences, no advice, no returns/performance, never output URLs, "NOT_FOUND" if chunks lack answer).
-Response handling:
-- Groq returns "NOT_FOUND" → return "Not in the knowledge base" + debug (no fallback)
-- Groq call fails (exception, timeout, missing GROQ_API_KEY) → extractive fallback (best 1-3 sentences from top chunk by keyword overlap), attach metadata, debug.fallback: true
-- Groq returns answer → attach source_url + fetched_date from top chunk metadata
-Response JSON must match architecture section 10 exactly (debug.fallback boolean).
-Handle missing index, low similarity, guardrails, provider errors as in architecture section 12.
-
-Do not build the web UI, debug panel, or query rewriting.
-Do not add any other LLM API calls.
-After implementation, run the four example /chat calls above and show outputs.
-```
+Expected: the exit-load answer keeps the "units above 15% of the investment" condition; the advice question returns the AMFI refusal with `debug.guardrail: "advisory"`; `/funds` returns all 5 funds.
 
 ---
 
-## Phase 9 — Chat UI
+## 9. If something regresses
 
-**Goal:** Browser chat in `web/index.html` calling local API. Welcome line, 3 example questions, disclaimer.
-
-**Create**
-
-- `web/index.html` — single static file (HTML + CSS + JS)
-  - Welcome line: "Welcome to the HDFC Mutual Fund FAQ Assistant."
-  - Three example questions as clickable chips:
-    1. "What is the expense ratio of HDFC Large Cap Fund?"
-    2. "What is the ELSS lock-in period?"
-    3. "How to download capital gains statement?"
-  - Disclaimer: "Facts-only. No investment advice."
-  - Chat area: send question → POST /chat → render answer, source link, "Last updated from sources: [date]"
-  - Source link opens in new tab
-  - Error states: API down, timeout, knowledge base not built
-  - CORS enabled on FastAPI for file:// or http://localhost origin
-- Update `README.md` with:
-  - Setup steps (venv, install, ingest, run API)
-  - Scope: HDFC Mutual Fund, 5 schemes (list them)
-  - Known limits: corpus from Groww pages not official AMC/SEBI/AMFI; no performance data; no advice
-
-**Do not**
-
-- Debug panel (out of scope)
-- Login, routing, component libraries
-- Persist chats to disk
-
-**Done when**
-
-- UI + API both running
-- Ask "What is the expense ratio of HDFC Large Cap Fund?" → answer + source link + date on screen
-- Ask "Should I buy HDFC ELSS?" → refusal + AMFI link
-- Kill the API → UI shows error, last user message remains
-
-### Cursor prompt — Phase 9
-
-```text
-Implement Phase 9 only from implementation.md. Read architecture.md sections 5.1, 5.2, 12, 13, 14, and problem_statement.md §5.
-
-Build web/index.html (single static file) and enable CORS on FastAPI.
-Single-session in-memory chat, no auth.
-UI must include: welcome line, 3 example questions (clickable), disclaimer "Facts-only. No investment advice."
-Show answer, source link (opens new tab), "Last updated from sources: [date]".
-Handle API down, timeout, missing index.
-Update README.md with setup steps, scope (HDFC + 5 schemes), known limits.
-Do not implement debug panel, routing, user accounts, or extra pages.
-Document how to start API and UI in README.md.
-```
-
----
-
-## Phase 10 — Deliverables
-
-**Goal:** Verify all deliverables from `problem_statement.md` §9 exist and work.
-
-**Create / verify**
-
-- Working prototype: API + UI running locally (demo via screen recording or live)
-- `SOURCE_LIST.md` — table of 5 URLs with scheme, category, source_url, fetched_date
-- `README.md` — updated with setup, scope, known limits (per architecture §13)
-- `SAMPLE_QA.md` — 5–10 queries with assistant's answers and links (run through API and capture)
-- Disclaimer snippet used in UI (already in `web/index.html`)
-- Verify success criteria from `problem_statement.md` §10:
-  1. Every answer factually correct and traceable to cited source
-  2. Every answer includes one source link and last-updated date
-  3. Advisory and PII queries consistently refused
-  4. Answers stay within 3 sentences
-
-**Do not**
-
-- Add new features
-- Change architecture
-
-**Done when**
-
-```text
-# All files exist
-ls SOURCE_LIST.md SAMPLE_QA.md README.md web/index.html
-
-# Sample Q&A verified against live API
-curl -X POST http://127.0.0.1:8000/chat -H "Content-Type: application/json" -d "{\"question\": \"What is the exit load of HDFC Small Cap Fund?\"}"
-# Check answer ≤ 3 sentences, has source_url, has fetched_date
-
-# Guardrails verified
-curl -X POST http://127.0.0.1:8000/chat -H "Content-Type: application/json" -d "{\"question\": \"What returns can I expect?\"}"
-# Returns refusal + factsheet link
-
-# Demo runs end-to-end
-```
-
-### Cursor prompt — Phase 10
-
-```text
-Implement Phase 10 only from implementation.md. Read architecture.md section 13, problem_statement.md §9 and §10.
-
-Create/verify deliverables:
-- SOURCE_LIST.md: table of 5 URLs with scheme, category, source_url, fetched_date
-- SAMPLE_QA.md: 5-10 queries run through the live API, capture answer, source_url, fetched_date
-- README.md: final version with setup, scope (HDFC + 5 schemes), known limits
-- Verify all 4 success criteria from problem_statement.md §10
-
-Do not add new features or change architecture.
-Run verification commands and show outputs.
-Stop when all deliverables exist and success criteria are met.
-```
-
----
-
-## Phase checklist
-
-| Phase | Deliverable | You should have |
-|-------|-------------|-----------------|
-| 6 | Corpus | 5 markdown files in `corpus/` |
-| 7 | Ingest | `python -m src.ingest` builds Chroma |
-| 8 | Chat API | `POST /chat` returns extractive answers + guardrails |
-| 9 | UI | `web/index.html` with welcome, 3 examples, disclaimer |
-| 10 | Deliverables | SOURCE_LIST.md, SAMPLE_QA.md, README.md, verified success criteria |
-
----
-
-## If Cursor drifts
-
-Paste this and nothing else:
-
-```text
-You went beyond the current phase. Revert or remove anything not listed in that phase of implementation.md. Re-read architecture.md. Do not add features from later phases. No LLM APIs, no API keys, no scraping, no auth.
-```
+1. Read `debug` in the response — `guardrail`, `intent`, `answer_check`, `number_check`, `fallback`, `not_found_override` and `matches[].score` say exactly which step fired.
+2. Re-run the failing rows: `scripts\run_eval.py --failed`.
+3. Fix the check or the prompt — **not** the thresholds, and never by deleting eval rows.

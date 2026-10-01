@@ -1,80 +1,78 @@
 # Tathya — Sample Q&A
 
-The following 10 queries were run against the live API at `http://127.0.0.1:8000/chat` on 2026-09-27.
+The following 10 queries were run against the live API at `http://127.0.0.1:8000/chat` on 2026-10-01.
 
 ---
 
 ## 1. What is the expense ratio of HDFC Large Cap Fund?
 
-**Answer:** The expense ratio of HDFC Large Cap Fund - Direct Growth is 1.03%.
+**Answer:** HDFC Large Cap Fund (Direct Growth) has an expense ratio of 1.03%.
 
 **Source:** https://groww.in/mutual-funds/hdfc-large-cap-fund-direct-growth
 
-**Last updated from sources:** 2026-09-27
+**Last updated from sources:** 27 Sep 2026
 
 ---
 
 ## 2. What is the lock-in period of HDFC ELSS Tax Saver Fund?
 
-**Answer:** The lock-in period for HDFC ELSS Tax Saver Fund is 3 years.
+**Answer:** HDFC ELSS Tax Saver Fund (Direct Plan Growth) has a lock-in period of 3 years.
 
 **Source:** https://groww.in/mutual-funds/hdfc-elss-tax-saver-fund-direct-plan-growth
 
-**Last updated from sources:** 2026-09-27
+**Last updated from sources:** 27 Sep 2026
 
 ---
 
-## 3. What is the exit load of HDFC Small Cap Fund?
+## 3. What is the exit load of HDFC Balanced Advantage Fund?
 
-**Answer:** The exit load for HDFC Small Cap Fund - Direct Growth is 1% if redeemed within one year.
-
-**Source:** https://groww.in/mutual-funds/hdfc-small-cap-fund-direct-growth
-
-**Last updated from sources:** 2026-09-27
-
----
-
-## 4. What is the benchmark of HDFC Balanced Advantage Fund?
-
-**Answer:** The benchmark of HDFC Balanced Advantage Fund - Direct Growth is the NIFTY 50 Hybrid Composite Debt 50:50 Index.
+**Answer:** The exit load applies to units above 15% of the investment: 1% if sold within 1 year.
 
 **Source:** https://groww.in/mutual-funds/hdfc-balanced-advantage-fund-direct-growth
 
-**Last updated from sources:** 2026-09-27
+**Last updated from sources:** 27 Sep 2026
 
 ---
 
-## 5. What is the minimum SIP for HDFC Flexi Cap Fund?
+## 4. What is the minimum SIP for HDFC Flexi Cap Fund?
 
-**Answer:** The minimum SIP for HDFC Flexi Cap Fund is ₹100.
+**Answer:** HDFC Flexi Cap Fund (Direct Growth) - Minimum SIP: ₹100.
 
 **Source:** https://groww.in/mutual-funds/hdfc-equity-fund-direct-growth
 
-**Last updated from sources:** 2026-09-27
+**Last updated from sources:** 27 Sep 2026
 
 ---
 
-## 6. Who manages HDFC Small Cap Fund?
+## 5. Who manages HDFC Small Cap Fund?
 
-**Answer:** HDFC Small Cap Fund is managed by Dhruv Muchhal (since June 2023) and Chirag Setalvad (since June 2014).
+**Answer:** HDFC Small Cap Fund (Direct Growth) is managed by Dhruv Muchhal and Chirag Setalvad.
 
 **Source:** https://groww.in/mutual-funds/hdfc-small-cap-fund-direct-growth
 
-**Last updated from sources:** 2026-09-27
+**Last updated from sources:** 27 Sep 2026
 
 ---
 
-## 7. What is the riskometer level of HDFC ELSS Tax Saver Fund?
+## 6. Follow-up with the selected fund
 
-**Answer:** The riskometer level of HDFC ELSS Tax Saver Fund is Very High.
+**Request:**
 
-**Source:** https://groww.in/mutual-funds/hdfc-elss-tax-saver-fund-direct-plan-growth
+```json
+{ "question": "What is the AUM?", "scheme": "HDFC Small Cap Fund - Direct Growth" }
+```
 
-**Last updated from sources:** 2026-09-27
+The question names no fund; the `scheme` sent by the UI (the fund picked on the Funds page or in the sidebar) answers it.
+
+**Answer:** HDFC Small Cap Fund (Direct Growth) has an AUM of ₹41,890.86 crore.
+
+**Source:** https://groww.in/mutual-funds/hdfc-small-cap-fund-direct-growth
+
+**Last updated from sources:** 27 Sep 2026
 
 ---
 
-## 8. Should I buy HDFC Small Cap Fund?
+## 7. Should I buy HDFC Small Cap Fund?
 
 **Title:** I can't give investment advice.
 
@@ -82,9 +80,23 @@ The following 10 queries were run against the live API at `http://127.0.0.1:8000
 
 **Source:** https://www.mutualfundssahihai.com/en
 
-**Last updated from sources:** 2026-09-27
+**Last updated from sources:** 27 Sep 2026
 
 **Guardrail triggered:** advisory
+
+---
+
+## 8. What were the past returns of HDFC Large Cap Fund?
+
+**Title:** I can't share returns or performance.
+
+**Answer:** Please check the official HDFC factsheet for this information.
+
+**Source:** https://www.hdfcfund.com/mutual-funds/factsheets
+
+**Last updated from sources:** 27 Sep 2026
+
+**Guardrail triggered:** returns
 
 ---
 
@@ -96,20 +108,14 @@ The following 10 queries were run against the live API at `http://127.0.0.1:8000
 
 **Source:** https://www.mutualfundssahihai.com/en
 
-**Last updated from sources:** 2026-09-27
+**Last updated from sources:** 27 Sep 2026
 
 **Guardrail triggered:** pii
 
 ---
 
-## 10. What were the past returns of HDFC Large Cap Fund?
+## 10. What about SBI Large Cap Fund?
 
-**Title:** I can't share returns or performance.
+**Answer:** I can only answer questions about these 5 HDFC funds: Large Cap, Flexi Cap, ELSS Tax Saver, Small Cap and Balanced Advantage.
 
-**Answer:** Please check the official HDFC factsheet for this information.
-
-**Source:** https://www.hdfcfund.com/mutual-funds/factsheets
-
-**Last updated from sources:** 2026-09-27
-
-**Guardrail triggered:** returns
+**Guardrail triggered:** out_of_scope
