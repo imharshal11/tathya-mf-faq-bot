@@ -12,8 +12,17 @@
     recentQuestions: [],
     typing: false,
     fundsList: [],
-    mobileView: 'home'
+    mobileView: 'home',
+    navView: 'chat',
+    aboutOpen: false,
+    aboutTrigger: null,
+    aboutLayout: 'desktop'
   };
+
+  // Display order used by the Funds view and the About sources list
+  const FUND_ORDER = ['large-cap', 'flexi-cap', 'elss', 'small-cap', 'balanced'];
+
+  const NOT_ON_SOURCE = 'Not on source page';
 
   // Mobile home fact line formats (values come from GET /funds)
   const MOBILE_FUND_SHORT = {
@@ -46,6 +55,8 @@
     bindEvents();
     await loadFundsList();
     renderHome();
+    renderFundsScreens();
+    renderAboutSources();
   }
 
   function detectViewport() {
@@ -89,15 +100,20 @@
       mobileStartBtn.addEventListener('click', startMobileChat);
     }
 
+    // Desktop / tablet top nav pill (Chat / Funds / About)
+    document.querySelectorAll('.nav-pill [data-tab]').forEach(tab => {
+      tab.addEventListener('click', () => handleNavTab(tab.dataset.tab, tab));
+    });
+
     // Mobile bottom nav (Home / Chat / Funds / About)
     document.querySelectorAll('.mobile-nav-item').forEach(item => {
-      item.addEventListener('click', () => handleMobileNav(item.dataset.view));
+      item.addEventListener('click', () => handleMobileNav(item.dataset.view, item));
     });
 
     // Header info button — same action as the "About" nav item
     const mobileInfoBtn = document.querySelector('.mobile-info-btn');
     if (mobileInfoBtn) {
-      mobileInfoBtn.addEventListener('click', handleMobileAbout);
+      mobileInfoBtn.addEventListener('click', () => openAbout(mobileInfoBtn));
     }
 
     // Mobile chat: back / new chat / fund chips / composer
@@ -131,6 +147,11 @@
     // Copy / Share / Ask again — one delegated listener serves both layouts
     document.addEventListener('click', handleChatActionClick);
 
+    // Funds view buttons + About dialog close (backdrop, X) — one listener each
+    document.addEventListener('click', handleFundsViewClick);
+    document.addEventListener('click', handleAboutCloseClick);
+    document.addEventListener('keydown', handleAboutKeydown);
+
     // Window resize
     window.addEventListener('resize', debounce(detectViewport, 100));
   }
@@ -143,6 +164,10 @@
 
   function mobileChatEl() {
     return els.mobileMain ? els.mobileMain.querySelector('.mobile-chat') : null;
+  }
+
+  function mobileFundsEl() {
+    return els.mobileMain ? els.mobileMain.querySelector('.mobile-funds') : null;
   }
 
   function isMobileChatOpen() {
@@ -160,14 +185,7 @@
     return isMobileChatOpen() ? mobileMessagesEl() : els.messages;
   }
 
-  function setMobileView(view) {
-    state.mobileView = view;
-
-    const home = mobileHomeEl();
-    const chat = mobileChatEl();
-    if (home) home.style.display = view === 'home' ? '' : 'none';
-    if (chat) chat.hidden = view !== 'chat';
-
+  function setMobileNavActive(view) {
     document.querySelectorAll('.mobile-nav-item').forEach(item => {
       const active = item.dataset.view === view;
       item.classList.toggle('active', active);
@@ -177,6 +195,19 @@
         item.removeAttribute('aria-current');
       }
     });
+  }
+
+  function setMobileView(view) {
+    state.mobileView = view;
+
+    const home = mobileHomeEl();
+    const chat = mobileChatEl();
+    const funds = mobileFundsEl();
+    if (home) home.style.display = view === 'home' ? '' : 'none';
+    if (chat) chat.hidden = view !== 'chat';
+    if (funds) funds.hidden = view !== 'funds';
+
+    setMobileNavActive(view);
 
     if (els.mobileMain) els.mobileMain.scrollTop = 0;
   }
@@ -209,7 +240,7 @@
     setMobileView('chat');
   }
 
-  function handleMobileNav(view) {
+  function handleMobileNav(view, trigger) {
     switch (view) {
       case 'home':
         setMobileView('home');
@@ -218,20 +249,14 @@
         openMobileChat(state.activeFund);
         break;
       case 'funds':
-        setMobileView('home');
-        document.querySelector('.funds-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setMobileView('funds');
         break;
       case 'about':
-        handleMobileAbout();
+        openAbout(trigger);
         break;
       default:
         break;
     }
-  }
-
-  function handleMobileAbout() {
-    const target = document.querySelector('.credit-links') || document.querySelector('.disclaimer-card');
-    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   function mobileFundFact(fund) {
@@ -264,10 +289,13 @@
   }
 
   function handleNewChat() {
+    closeFundsView();
     state.messages = [];
     state.isChat = false;
     state.activeFund = null;
     els.workspace?.classList.remove('is-chat');
+    state.navView = 'chat';
+    setDesktopNav('chat');
 
     // Restore main panel to HOME structure (just messages div)
     const mainEl = document.querySelector('.main');
@@ -761,6 +789,7 @@
   }
 
   async function renderChatView(question, scheme) {
+    closeFundsView();
     const mainEl = document.querySelector('.main');
     if (!mainEl) return;
 
@@ -1092,6 +1121,288 @@
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => fn.apply(null, args), delay);
     };
+  }
+
+  // ---------- Funds view (desktop / tablet main card + mobile screen) ----------
+
+  function isMobileLayout() {
+    return window.matchMedia('(max-width: 767px)').matches;
+  }
+
+  function setDesktopNav(tab) {
+    document.querySelectorAll('.nav-pill [data-tab]').forEach(btn => {
+      btn.setAttribute('aria-selected', btn.dataset.tab === tab ? 'true' : 'false');
+    });
+  }
+
+  function handleNavTab(tab, trigger) {
+    if (tab === 'about') {
+      openAbout(trigger);
+      return;
+    }
+    if (tab === 'funds') {
+      showFundsView();
+      return;
+    }
+    closeFundsView();
+    state.navView = 'chat';
+    setDesktopNav('chat');
+  }
+
+  function showFundsView() {
+    const mainEl = document.querySelector('.main');
+    if (!mainEl) return;
+
+    if (!mainEl.querySelector('.funds-view')) {
+      // Park the current card content (home or conversation) so its listeners survive
+      const stash = document.createElement('div');
+      stash.className = 'main-stash';
+      stash.hidden = true;
+      while (mainEl.firstChild) stash.appendChild(mainEl.firstChild);
+
+      const view = document.createElement('div');
+      view.className = 'funds-view';
+      view.innerHTML = fundsViewHtml();
+
+      mainEl.appendChild(stash);
+      mainEl.appendChild(view);
+      mainEl.classList.add('is-funds-main');
+    }
+
+    if (els.workspace && state.isChat) els.workspace.classList.remove('is-chat');
+
+    state.navView = 'funds';
+    setDesktopNav('funds');
+
+    const view = mainEl.querySelector('.funds-view');
+    if (view) view.scrollTop = 0;
+  }
+
+  function closeFundsView() {
+    const mainEl = document.querySelector('.main');
+    if (!mainEl) return;
+
+    const view = mainEl.querySelector('.funds-view');
+    const stash = mainEl.querySelector('.main-stash');
+    if (view) view.remove();
+
+    if (stash) {
+      while (stash.firstChild) mainEl.insertBefore(stash.firstChild, mainEl.firstChild);
+      stash.remove();
+    }
+
+    mainEl.classList.remove('is-funds-main');
+    if (els.workspace && state.isChat) els.workspace.classList.add('is-chat');
+  }
+
+  function orderedFunds() {
+    return FUND_ORDER.map(id => ({
+      id,
+      fund: state.fundsList.find(f => normalizeFundId(f.short_name) === id) || null
+    }));
+  }
+
+  function fetchedDateLabel() {
+    const raw = (state.fundsList[0] || {}).fetched_date || '27 Sep 2026';
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? formatDate(raw) : raw;
+  }
+
+  function factValue(value) {
+    const text = value === null || value === undefined ? '' : String(value).trim();
+    return text || NOT_ON_SOURCE;
+  }
+
+  function fundCardHtml(id, fund) {
+    const name = (fund && (fund.full_name || fund.display_name)) || getFundDisplayName(id) || '';
+    const category = (fund && fund.category) || NOT_ON_SOURCE;
+    const managers = (fund && fund.fund_managers && fund.fund_managers.length)
+      ? fund.fund_managers.map(m => m.name).join(', ')
+      : '';
+
+    const rows = [
+      { label: 'Expense ratio', value: fund ? fund.expense_ratio : '' },
+      { label: 'Exit load', value: fund ? fund.exit_load : '' },
+      { label: 'Minimum SIP', value: fund ? fund.min_sip : '' }
+    ];
+    // Lock-in only when the source page has one
+    if (fund && fund.lock_in) rows.push({ label: 'Lock-in', value: fund.lock_in });
+    rows.push(
+      { label: 'Riskometer', value: fund ? fund.riskometer : '' },
+      { label: 'Benchmark', value: fund ? fund.benchmark : '' },
+      { label: 'Fund size', value: fund ? fund.aum : '' },
+      { label: 'Fund managers', value: managers }
+    );
+
+    const facts = rows.map(row => `
+          <div class="fv-row">
+            <dt>${escapeHtml(row.label)}</dt>
+            <dd>${escapeHtml(factValue(row.value))}</dd>
+          </div>`).join('');
+
+    const sourceUrl = fund && fund.source_url ? fund.source_url : '';
+    const sourceBtn = sourceUrl
+      ? `<a class="fv-source" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener">Open source page<svg class="icon external" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"></path><path d="M20 4l-9 9"></path><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"></path></svg></a>`
+      : '';
+
+    return `
+        <article class="fv-card" data-fund="${escapeHtml(id)}">
+          <div class="fv-card-top">
+            <span class="fv-swatch" aria-hidden="true"></span>
+            <span class="fv-card-icon" aria-hidden="true"><svg class="icon fund-bars" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0B2A5B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"></path><path d="M7 15V9"></path><path d="M12 15V5"></path><path d="M17 15v-4"></path></svg></span>
+            <div class="fv-card-id">
+              <span class="fv-name">${escapeHtml(name)}</span>
+              <span class="fv-cat">${escapeHtml(category)}</span>
+            </div>
+          </div>
+          <dl class="fv-facts">${facts}
+          </dl>
+          <div class="fv-actions">
+            <button class="fv-ask" type="button" data-fund="${escapeHtml(id)}">Ask about this fund</button>
+            ${sourceBtn}
+          </div>
+        </article>`;
+  }
+
+  function fundsViewHtml() {
+    const cards = orderedFunds().map(({ id, fund }) => fundCardHtml(id, fund)).join('');
+    return `
+      <div class="funds-view-head">
+        <h2 class="funds-view-title">Funds covered</h2>
+        <p class="funds-view-sub">Key facts from each fund's Groww page, updated ${escapeHtml(fetchedDateLabel())}.</p>
+      </div>
+      <div class="funds-cards">${cards}
+      </div>
+      <p class="funds-view-foot">Facts-only. No investment advice. Returns and performance are not shown.</p>
+    `;
+  }
+
+  function renderFundsScreens() {
+    const mobileFunds = mobileFundsEl();
+    if (mobileFunds) mobileFunds.innerHTML = fundsViewHtml();
+  }
+
+  function handleFundsViewClick(e) {
+    const askBtn = e.target && e.target.closest ? e.target.closest('.fv-ask') : null;
+    if (askBtn && askBtn.dataset.fund) askAboutFund(askBtn.dataset.fund);
+  }
+
+  // Select the fund, leave the Funds view and land in the composer with focus
+  function askAboutFund(fundId) {
+    state.activeFund = fundId;
+    syncFundSelectionUI();
+
+    if (isMobileLayout()) {
+      openMobileChat(fundId);
+      const mobileInput = document.getElementById('q-mobile');
+      if (mobileInput) mobileInput.focus();
+      return;
+    }
+
+    closeFundsView();
+    state.navView = 'chat';
+    setDesktopNav('chat');
+    if (state.isChat) fetchFundFacts(state.activeFund);
+
+    const input = document.getElementById('q-deskchat') || document.getElementById('q-desk');
+    if (input) input.focus();
+  }
+
+  // ---------- About dialog (desktop modal / mobile bottom sheet) ----------
+
+  function renderAboutSources() {
+    const sourcesEl = document.getElementById('about-sources');
+    const asOfEl = document.getElementById('about-asof');
+    if (asOfEl) asOfEl.textContent = `Data as of ${fetchedDateLabel()}`;
+    if (!sourcesEl) return;
+
+    sourcesEl.innerHTML = orderedFunds().map(({ id, fund }) => {
+      const url = fund && fund.source_url ? fund.source_url : '';
+      const label = (fund && (fund.full_name || fund.display_name)) || getFundDisplayName(id);
+      if (!url) return '';
+      return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>`;
+    }).join('');
+  }
+
+  function openAbout(trigger) {
+    const layer = document.getElementById('about-layer');
+    const dialog = document.getElementById('about-dialog');
+    if (!layer || !dialog || state.aboutOpen) return;
+
+    state.aboutOpen = true;
+    state.aboutTrigger = trigger || document.activeElement;
+    state.aboutLayout = isMobileLayout() ? 'mobile' : 'desktop';
+
+    // Only one of Chat / Funds / About looks active while the dialog is open
+    if (state.aboutLayout === 'mobile') {
+      setMobileNavActive('about');
+    } else {
+      setDesktopNav('about');
+    }
+
+    layer.hidden = false;
+    document.body.classList.add('about-open');
+    dialog.scrollTop = 0;
+    dialog.focus();
+  }
+
+  function closeAbout() {
+    if (!state.aboutOpen) return;
+
+    const layer = document.getElementById('about-layer');
+    state.aboutOpen = false;
+    if (layer) layer.hidden = true;
+    document.body.classList.remove('about-open');
+
+    // Closing About returns the active state to the previous view
+    if (state.aboutLayout === 'mobile') {
+      setMobileNavActive(state.mobileView);
+    } else {
+      setDesktopNav(state.navView);
+    }
+
+    const trigger = state.aboutTrigger;
+    state.aboutTrigger = null;
+    if (trigger && typeof trigger.focus === 'function' && trigger.isConnected) trigger.focus();
+  }
+
+  function handleAboutCloseClick(e) {
+    if (!state.aboutOpen) return;
+    const closer = e.target && e.target.closest ? e.target.closest('[data-about-close]') : null;
+    if (closer) closeAbout();
+  }
+
+  function handleAboutKeydown(e) {
+    if (!state.aboutOpen) return;
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeAbout();
+      return;
+    }
+
+    if (e.key !== 'Tab') return;
+
+    const dialog = document.getElementById('about-dialog');
+    if (!dialog) return;
+    const focusables = dialog.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (!focusables.length) {
+      e.preventDefault();
+      dialog.focus();
+      return;
+    }
+
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (!dialog.contains(document.activeElement)) {
+      e.preventDefault();
+      (e.shiftKey ? last : first).focus();
+    } else if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   }
 
   // Start

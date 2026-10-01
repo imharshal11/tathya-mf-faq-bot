@@ -216,6 +216,8 @@
         </div>
       </div>
 
+      <section class="mobile-funds" id="mobile-funds" aria-label="Funds covered" hidden></section>
+
       <div class="mobile-chat" id="mobile-chat" hidden>
         <header class="mobile-chat-header">
           <button class="chat-back-btn" type="button" aria-label="Back to home">
@@ -268,6 +270,63 @@
         <svg class="icon info" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5"></path><path d="M12 8h.01"></path></svg>
       </button>
     </nav>
+  </div>
+
+  <div class="about-layer" id="about-layer" hidden>
+    <div class="about-backdrop" data-about-close></div>
+    <div class="about-dialog" id="about-dialog" role="dialog" aria-modal="true" aria-labelledby="about-title" tabindex="-1">
+      <button class="about-close" type="button" aria-label="Close" data-about-close>
+        <svg class="icon close" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg>
+      </button>
+
+      <div class="about-body">
+        <div class="about-brand">
+          <div class="about-tile" aria-hidden="true">t<span class="about-dot" aria-hidden="true"></span></div>
+          <span class="about-wordmark"><span class="n">tath</span><span class="s">ya</span></span>
+        </div>
+        <h2 class="about-tagline" id="about-title">Mutual fund facts, with proof.</h2>
+
+        <section class="about-section">
+          <h3 class="about-h">What Tathya does</h3>
+          <p class="about-p">Tathya answers factual questions about 5 HDFC mutual funds and shows the source and date for every answer.</p>
+        </section>
+
+        <section class="about-section">
+          <h3 class="about-h">Funds covered</h3>
+          <ul class="about-list">
+            <li>HDFC Large Cap Fund</li>
+            <li>HDFC Flexi Cap Fund</li>
+            <li>HDFC ELSS Tax Saver Fund</li>
+            <li>HDFC Small Cap Fund</li>
+            <li>HDFC Balanced Advantage Fund</li>
+          </ul>
+          <p class="about-note">(Direct Plan, Growth option)</p>
+        </section>
+
+        <section class="about-section">
+          <h3 class="about-h">What it does not do</h3>
+          <p class="about-p">No investment advice, no returns or performance, no live NAV, and it never asks for personal details.</p>
+        </section>
+
+        <section class="about-section">
+          <h3 class="about-h">Sources</h3>
+          <div class="about-sources" id="about-sources"></div>
+          <p class="about-note" id="about-asof">Data as of 27 Sep 2026</p>
+        </section>
+
+        <p class="about-disc">Mutual Fund investments are subject to market risks, read all scheme related documents carefully. Tathya shares facts from public Groww pages for information only. It is not investment advice or a recommendation to buy or sell any fund.</p>
+
+        <div class="about-built">
+          <span>Built by <strong>Harshal S</strong></span>
+          <a class="about-social" href="https://www.linkedin.com/in/imharshal11" target="_blank" rel="noopener" aria-label="Harshal S on LinkedIn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0A66C2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
+          </a>
+          <a class="about-social" href="https://github.com/imharshal11" target="_blank" rel="noopener" aria-label="Harshal S on GitHub">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"></path></svg>
+          </a>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="/app.js" defer></script>
