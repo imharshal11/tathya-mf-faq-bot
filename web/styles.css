@@ -1568,6 +1568,11 @@ a:hover { color: #075985; }
   .icon { flex-shrink: 0; display: block; }
 }
 
+/* ---------- Mobile-only chat affordances (hidden on desktop / tablet) ---------- */
+@media (min-width: 768px) {
+  .msg-user-actions, .answer-fund-tag, .answer-actions { display: none; }
+}
+
 /* ---------- Mobile (max-width: 767px) — shell hidden for now ---------- */
 @media (max-width: 767px) {
   /* PHASE 5 — MOBILE HOME (copied from Docx/design/mobile-home.html) */
@@ -2456,6 +2461,28 @@ a:hover { color: #075985; }
     line-height: 1.4;
     color: #64748B;
   }
+
+  /* Toast (Copy / Share feedback) */
+  .app-toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(96px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    background: #0B2A5B;
+    color: #FFFFFF;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 9px 16px;
+    border-radius: 999px;
+    box-shadow: 0 8px 24px rgba(11, 42, 91, 0.18);
+    opacity: 0;
+    transition: opacity 0.18s ease;
+    z-index: 300;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .app-toast.show { opacity: 1; }
 
   /* Icons */
   .icon {

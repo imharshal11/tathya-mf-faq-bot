@@ -100,6 +100,37 @@
       mobileInfoBtn.addEventListener('click', handleMobileAbout);
     }
 
+    // Mobile chat: back / new chat / fund chips / composer
+    const chatBackBtn = document.querySelector('.chat-back-btn');
+    if (chatBackBtn) {
+      chatBackBtn.addEventListener('click', () => setMobileView('home'));
+    }
+
+    const chatNewBtn = document.querySelector('.chat-new-btn');
+    if (chatNewBtn) {
+      chatNewBtn.addEventListener('click', handleMobileNewChat);
+    }
+
+    document.querySelectorAll('.fund-chip-bar .fund-chip').forEach(chip => {
+      chip.addEventListener('click', () => toggleFundSelection(chip.dataset.fund));
+    });
+
+    const mobileChatForm = document.querySelector('#mobile-chat-form');
+    const mobileChatInput = document.querySelector('#q-mobile');
+    if (mobileChatForm && mobileChatInput) {
+      mobileChatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const q = mobileChatInput.value.trim();
+        if (!q) return;
+        const fundSelectValue = state.activeFund || 'all';
+        const scheme = fundSelectValue === 'all' ? null : getSchemeName(fundSelectValue);
+        sendQuestion(q, scheme, fundSelectValue);
+      });
+    }
+
+    // Copy / Share / Ask again — one delegated listener serves both layouts
+    document.addEventListener('click', handleChatActionClick);
+
     // Window resize
     window.addEventListener('resize', debounce(detectViewport, 100));
   }
@@ -112,6 +143,21 @@
 
   function mobileChatEl() {
     return els.mobileMain ? els.mobileMain.querySelector('.mobile-chat') : null;
+  }
+
+  function isMobileChatOpen() {
+    const chat = mobileChatEl();
+    return !!(chat && !chat.hidden);
+  }
+
+  function mobileMessagesEl() {
+    const chat = mobileChatEl();
+    return chat ? chat.querySelector('.messages') : null;
+  }
+
+  // One render path: the same message container the desktop logic writes to
+  function getActiveMessagesEl() {
+    return isMobileChatOpen() ? mobileMessagesEl() : els.messages;
   }
 
   function setMobileView(view) {
@@ -139,12 +185,28 @@
     if (fundId) state.activeFund = fundId;
     const chat = mobileChatEl();
     if (chat) chat.dataset.fund = state.activeFund || 'all';
+    syncFundSelectionUI();
     setMobileView('chat');
   }
 
   function startMobileChat() {
-    state.activeFund = null;
-    openMobileChat(null);
+    handleMobileNewChat();
+  }
+
+  // Mobile "New chat": clear the conversation, stay on the mobile chat screen
+  function handleMobileNewChat() {
+    handleNewChat();
+
+    const chat = mobileChatEl();
+    if (chat) {
+      const inner = chat.querySelector('.messages-inner');
+      if (inner) inner.innerHTML = '';
+      const input = chat.querySelector('#q-mobile');
+      if (input) input.value = '';
+    }
+
+    syncFundSelectionUI();
+    setMobileView('chat');
   }
 
   function handleMobileNav(view) {
@@ -222,7 +284,7 @@
 
   function handleFundSelect(fundId) {
     // If same fund is already selected, unselect (back to "All 5 funds")
-    if (state.activeFund === fundId) {
+    if (normalizeFundId(state.activeFund) === normalizeFundId(fundId)) {
       state.activeFund = null;
     } else {
       state.activeFund = fundId;
@@ -236,7 +298,8 @@
   }
 
   function fetchFundFacts(fundId) {
-    const fund = state.fundsList.find(f => f.short_name === fundId || f.id === fundId);
+    const fundIdNorm = normalizeFundId(fundId);
+    const fund = state.fundsList.find(f => normalizeFundId(f.short_name) === fundIdNorm);
     if (fund) {
       populateSourcesPanel(fund);
     }
@@ -357,7 +420,7 @@
       }
 
       // Fund chips (pills) - click to select/unselect fund
-      document.querySelectorAll('.fund-chip').forEach(chip => {
+      els.app.querySelectorAll('.fund-chip').forEach(chip => {
         chip.addEventListener('click', () => {
           const fundId = chip.dataset.fund;
           toggleFundSelection(fundId);
@@ -381,6 +444,21 @@
   }
 
   // Fund selection helpers
+  // Funds are addressed both by data-fund id ("flexi-cap") and by the API
+  // short_name ("Flexi Cap") — normalise so every lookup accepts either.
+  const FUND_ID_ALIASES = {
+    'large-cap': 'large-cap', 'Large Cap': 'large-cap',
+    'flexi-cap': 'flexi-cap', 'Flexi Cap': 'flexi-cap',
+    'elss': 'elss', 'ELSS': 'elss',
+    'small-cap': 'small-cap', 'Small Cap': 'small-cap',
+    'balanced': 'balanced', 'Balanced Advantage': 'balanced'
+  };
+
+  function normalizeFundId(value) {
+    if (!value) return null;
+    return FUND_ID_ALIASES[value] || value;
+  }
+
   function getFundDisplayName(shortName) {
     const names = {
       'large-cap': 'HDFC Large Cap Fund',
@@ -389,12 +467,12 @@
       'small-cap': 'HDFC Small Cap Fund',
       'balanced': 'HDFC Balanced Advantage Fund'
     };
-    return names[shortName] || '';
+    return names[normalizeFundId(shortName)] || '';
   }
 
   function toggleFundSelection(fundId) {
     // If same fund is already selected, unselect (back to "All 5 funds")
-    if (state.activeFund === fundId) {
+    if (normalizeFundId(state.activeFund) === normalizeFundId(fundId)) {
       state.activeFund = null;
     } else {
       state.activeFund = fundId;
@@ -403,20 +481,126 @@
   }
 
   function syncFundSelectionUI() {
-    // Sync fund pills (home)
-    document.querySelectorAll('.fund-chip').forEach(chip => {
-      chip.classList.toggle('active', chip.dataset.fund === state.activeFund);
+    const activeId = normalizeFundId(state.activeFund);
+
+    // Sync fund pills (desktop home)
+    document.querySelectorAll('.app .fund-chip').forEach(chip => {
+      chip.classList.toggle('active', normalizeFundId(chip.dataset.fund) === activeId);
     });
 
     // Sync dropdown (home)
     if (els.fundSelect) {
-      els.fundSelect.value = state.activeFund || 'all';
+      els.fundSelect.value = activeId || 'all';
     }
 
     // Sync sidebar fund items
     els.fundItems.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.fund === state.activeFund);
+      btn.classList.toggle('active', normalizeFundId(btn.dataset.fund) === activeId);
     });
+
+    syncMobileFundChips();
+  }
+
+  // Mobile chat fund chip bar (aria-pressed follows the active fund)
+  function syncMobileFundChips() {
+    const activeId = normalizeFundId(state.activeFund);
+    document.querySelectorAll('.fund-chip-bar .fund-chip').forEach(chip => {
+      const on = normalizeFundId(chip.dataset.fund) === activeId;
+      chip.classList.toggle('active', on);
+      chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+
+  // ---------- Copy / Share / Ask again (mobile chat actions) ----------
+
+  let toastTimer = null;
+
+  function showToast(message) {
+    let el = document.querySelector('.app-toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'app-toast';
+      el.setAttribute('role', 'status');
+      document.body.appendChild(el);
+    }
+    el.textContent = message;
+    void el.offsetWidth;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      el.classList.remove('show');
+      const node = el;
+      setTimeout(() => node.remove(), 260);
+    }, 1600);
+  }
+
+  function legacyCopy(text, done) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '0';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+    } catch (e) {
+      // clipboard unavailable — still confirm the attempt
+    }
+    ta.remove();
+    done();
+  }
+
+  function copyText(text) {
+    const done = () => showToast('Copied');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => legacyCopy(text, done));
+    } else {
+      legacyCopy(text, done);
+    }
+  }
+
+  function shareText(text) {
+    if (typeof navigator.share === 'function') {
+      navigator.share({ title: 'Tathya', text }).catch(() => copyText(text));
+    } else {
+      copyText(text);
+    }
+  }
+
+  function handleChatActionClick(e) {
+    const btn = e.target.closest ? e.target.closest('.msg-user-action, .answer-action') : null;
+    if (!btn) return;
+
+    const action = btn.dataset.action;
+
+    if (action === 'copy') {
+      const userBubble = btn.closest('.msg-user');
+      const card = btn.closest('.answer-card, .refusal-card, .info-card');
+      const source = userBubble
+        ? userBubble.querySelector('.msg-user-text')
+        : (card ? card.querySelector('.answer-text') : null);
+      const text = source ? source.textContent : '';
+      if (text) copyText(text);
+      return;
+    }
+
+    if (action === 'share') {
+      const card = btn.closest('.answer-card, .refusal-card, .info-card');
+      const text = card ? (card.querySelector('.answer-text')?.textContent || '') : '';
+      if (text) shareText(text);
+      return;
+    }
+
+    if (action === 'again') {
+      const bubble = btn.closest('.msg-user');
+      const question = bubble ? (bubble.querySelector('.msg-user-text')?.textContent || '').trim() : '';
+      if (!question) return;
+      const fundSelectValue = state.activeFund || 'all';
+      const scheme = fundSelectValue === 'all' ? null : getSchemeName(fundSelectValue);
+      sendQuestion(question, scheme, fundSelectValue);
+    }
   }
 
   function insertTopicQuestion(topic) {
@@ -459,17 +643,85 @@
     sendQuestion(question, scheme, fundSelectValue);
   }
 
+  function userBubbleHtml(question) {
+    return `<div class="msg-user"><span class="msg-user-text">${escapeHtml(question)}</span><div class="msg-user-actions"><button class="msg-user-action" type="button" data-action="copy">Copy</button><button class="msg-user-action" type="button" data-action="again">Ask again</button></div></div>`;
+  }
+
+  function typingRowHtml() {
+    return `
+      <div class="msg-bot">
+        <div class="avatar">t<span class="dot" aria-hidden="true"></span></div>
+        <article class="typing-indicator">Tathya is typing…</article>
+      </div>
+    `;
+  }
+
+  function clearComposers() {
+    if (els.textarea) els.textarea.value = '';
+    ['q-deskchat', 'q-mobile'].forEach(id => {
+      const field = document.getElementById(id);
+      if (field) field.value = '';
+    });
+  }
+
+  // POST /chat — same payload as desktop, with a 60s startup timeout
+  async function fetchChatAnswer(question, scheme) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60000);
+    try {
+      const response = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, scheme }),
+        signal: controller.signal
+      });
+      return await response.json();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function renderBotError(message, messagesEl) {
+    const target = messagesEl || getActiveMessagesEl();
+    if (!target) return;
+    const typingEl = target.querySelector('.typing-indicator');
+    if (!typingEl) return;
+    typingEl.outerHTML = `
+      <article class="info-card" role="alert">
+        <p class="answer-text">${escapeHtml(message)}</p>
+      </article>
+    `;
+    target.scrollTop = target.scrollHeight;
+  }
+
+  async function requestAnswer(question, apiScheme, messagesEl) {
+    try {
+      const data = await fetchChatAnswer(question, apiScheme);
+      // Pass the question to renderAnswer for fund context logic
+      data.question = question;
+      renderAnswer(data, messagesEl);
+    } catch (e) {
+      if (e && e.name === 'AbortError') {
+        renderBotError('The app is starting up. This can take up to a minute. Please try again.', messagesEl);
+        return;
+      }
+      console.error('API error:', e);
+      renderBotError('Something went wrong. Please try again in a moment.', messagesEl);
+    }
+  }
+
   async function sendQuestion(question, fund, fundId) {
     // Add to recent questions
     addRecentQuestion(question);
 
     // Clear composer
-    if (els.textarea) els.textarea.value = '';
-    const chatInput = document.querySelector('#q-deskchat');
-    if (chatInput) chatInput.value = '';
+    clearComposers();
+
+    const mobileOpen = isMobileChatOpen();
+    const messagesEl = mobileOpen ? mobileMessagesEl() : els.messages;
 
     // If not in chat state yet, transition and render chat view
-    if (!state.isChat) {
+    if (!mobileOpen && !state.isChat) {
       state.isChat = true;
       els.workspace?.classList.add('is-chat');
       await renderChatView(question, fund);
@@ -477,57 +729,35 @@
     }
 
     // Follow-up question: append user message and fetch answer
-    if (!els.messages) return;
-    const messagesInner = els.messages.querySelector('.messages-inner');
-    if (!messagesInner) return;
+    if (!messagesEl) return;
+    let messagesInner = messagesEl.querySelector('.messages-inner');
+    if (!messagesInner) {
+      messagesEl.innerHTML = '<div class="messages-inner"></div>';
+      messagesInner = messagesEl.querySelector('.messages-inner');
+    }
 
     // Append user message
     messagesInner.insertAdjacentHTML('beforeend', `
-      <div class="msg-user">${escapeHtml(question)}</div>
-      <div class="msg-bot">
-        <div class="avatar">t<span class="dot" aria-hidden="true"></span></div>
-        <article class="typing-indicator">Tathya is typing…</article>
-      </div>
+      ${userBubbleHtml(question)}
+      ${typingRowHtml()}
     `);
 
     // Auto-scroll to bottom
-    els.messages.scrollTop = els.messages.scrollHeight;
+    messagesEl.scrollTop = messagesEl.scrollHeight;
 
     // Determine fund for API call: use active fund (from latest answer or sidebar selection)
     // The active fund is tracked by short_name, find its scheme_name from the funds list
     let apiScheme = fund;
     if (!apiScheme && state.activeFund) {
-      const activeFundObj = state.fundsList.find(f => f.short_name === state.activeFund);
+      const activeFundId = normalizeFundId(state.activeFund);
+      const activeFundObj = state.fundsList.find(f => normalizeFundId(f.short_name) === activeFundId);
       if (activeFundObj) {
         apiScheme = activeFundObj.scheme_name;
       }
     }
 
     // Fetch answer
-    try {
-      const response = await fetch('/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, scheme: apiScheme })
-      });
-      const data = await response.json();
-      // Pass the question to renderAnswer for fund context logic
-      data.question = question;
-      renderAnswer(data);
-    } catch (e) {
-      console.error('API error:', e);
-      const typingEl = els.messages.querySelector('.typing-indicator');
-      if (typingEl) {
-        typingEl.outerHTML = `
-          <div class="msg-bot">
-            <div class="avatar">t<span class="dot" aria-hidden="true"></span></div>
-            <article class="info-card">
-              <p class="answer-text">Something went wrong. Please try again in a moment.</p>
-            </article>
-          </div>
-        `;
-      }
-    }
+    await requestAnswer(question, apiScheme, messagesEl);
   }
 
   async function renderChatView(question, scheme) {
@@ -562,11 +792,8 @@
       </header>
       <div class="messages" id="messages" role="log" aria-live="polite" aria-label="Conversation">
         <div class="messages-inner">
-          <div class="msg-user">${escapeHtml(question)}</div>
-          <div class="msg-bot">
-            <div class="avatar">t<span class="dot" aria-hidden="true"></span></div>
-            <article class="typing-indicator">Tathya is typing…</article>
-          </div>
+          ${userBubbleHtml(question)}
+          ${typingRowHtml()}
         </div>
       </div>
       <div class="composer-wrap">
@@ -606,33 +833,25 @@
     }
 
     // Make actual API call
-    try {
-      const response = await fetch('/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, scheme })
-      });
-      const data = await response.json();
-      data.question = question;
-      renderAnswer(data);
-    } catch (e) {
-      console.error('API error:', e);
-      const typingEl = els.messages?.querySelector('.typing-indicator');
-      if (typingEl) {
-        typingEl.outerHTML = `
-          <div class="msg-bot">
-            <div class="avatar">t<span class="dot" aria-hidden="true"></span></div>
-            <article class="info-card">
-              <p class="answer-text">Something went wrong. Please try again in a moment.</p>
-            </article>
-          </div>
-        `;
-      }
-    }
+    await requestAnswer(question, scheme, els.messages);
   }
 
-  function renderAnswer(data) {
-    if (!els.messages) return;
+  function answerFactLabel(data) {
+    if (data.title) return data.title.toLowerCase();
+    const q = (data.question || '').toLowerCase();
+    if (q.includes('expense ratio')) return 'expense ratio';
+    if (q.includes('exit load')) return 'exit load';
+    if (q.includes('minimum sip') || q.includes('min sip')) return 'minimum SIP';
+    if (q.includes('lock-in') || q.includes('lock in')) return 'lock-in period';
+    if (q.includes('riskometer')) return 'riskometer';
+    if (q.includes('benchmark')) return 'benchmark';
+    if (q.includes('fund size') || q.includes('aum')) return 'fund size';
+    return '';
+  }
+
+  function renderAnswer(data, messagesEl) {
+    messagesEl = messagesEl || getActiveMessagesEl();
+    if (!messagesEl) return;
 
     try {
       const guardrail = data.debug?.guardrail;
@@ -650,6 +869,7 @@
         'balanced': 'HDFC Balanced Advantage Fund'
       };
       const fundDisplay = fundNames[data.fund] || data.fund_display || 'HDFC Large Cap Fund';
+      const fundFromAnswer = findFundBySourceUrl(data.source_url);
 
       // Format date as "27 Sep 2026"
       const fetchDate = data.fetched_date || '27 Sep 2026';
@@ -686,41 +906,47 @@
         }
       } else {
         // Normal fund answer
-        const isSingleNumber = data.title && (data.answer.includes('%') || data.answer.match(/^[\d.]+%?$/));
+        // Fund tag (mobile chat) — "<fund full name> · Direct Growth"
+        const tagShortName = fundFromAnswer ? fundFromAnswer.short_name : state.activeFund;
+        const tagFundName = tagShortName ? getFundDisplayName(tagShortName) : '';
+        const fundTagHtml = tagFundName
+          ? `<span class="answer-fund-tag">${escapeHtml(tagFundName)} · Direct Growth</span>`
+          : '';
 
-        // Big number row for single number/percent answers
+        // Big number row for single number/percent answers (mobile chat only —
+        // desktop answers carry no title, so the desktop card stays unchanged)
         let bigNumberHtml = '';
-        if (isSingleNumber && data.title) {
+        if (isMobileChatOpen()) {
           const valueMatch = data.answer.match(/([\d.]+%)/);
-          const value = valueMatch ? valueMatch[1] : data.title;
-          const label = data.title.toLowerCase().replace('ratio', 'ratio');
-          bigNumberHtml = `
-            <div class="answer-number-row">
-              <span class="answer-number">${escapeHtml(value)}</span>
-              <span class="answer-label">${escapeHtml(label)}</span>
-            </div>
-          `;
+          const label = answerFactLabel(data);
+          const hasOtherDigits = /\d/.test(data.answer.replace(/[\d.]+%/g, ''));
+          if (valueMatch && label && !hasOtherDigits) {
+            bigNumberHtml = `
+              <div class="answer-number-row">
+                <span class="answer-number">${escapeHtml(valueMatch[1])}</span>
+                <span class="answer-label">${escapeHtml(label)}</span>
+              </div>
+            `;
+          }
         }
 
         // Fund manager chips - ONLY for manager-related questions
         let managerChipsHtml = '';
         const question = (data.question || '').toLowerCase();
         const isManagerQuestion = question.includes('manage') || question.includes('manager') || question.includes('who runs');
-        if (isManagerQuestion) {
-          const fundFromAnswer = findFundBySourceUrl(data.source_url);
-          if (fundFromAnswer && fundFromAnswer.fund_managers && fundFromAnswer.fund_managers.length > 0) {
-            const chips = fundFromAnswer.fund_managers.map(m => `
+        if (isManagerQuestion && fundFromAnswer && fundFromAnswer.fund_managers && fundFromAnswer.fund_managers.length > 0) {
+          const chips = fundFromAnswer.fund_managers.map(m => `
               <span class="fund-manager-chip">
                 <span class="name">${escapeHtml(m.name)}</span>
                 <span class="since">${escapeHtml('Since ' + m.since)}</span>
               </span>
             `).join('');
-            managerChipsHtml = `<div class="fund-manager-chips">${chips}</div>`;
-          }
+          managerChipsHtml = `<div class="fund-manager-chips">${chips}</div>`;
         }
 
         articleHtml = `
           <article class="answer-card">
+            ${fundTagHtml}
             ${bigNumberHtml}
             <p class="answer-text">${escapeHtml(data.answer)}</p>
             ${managerChipsHtml}
@@ -731,21 +957,32 @@
               </a>
               <span class="source-date">Updated ${escapeHtml(fetchDate)}</span>
             </div>
+            <div class="answer-actions">
+              <button class="answer-action" type="button" data-action="copy">
+                <svg class="icon copy" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V6a1 1 0 0 1 1-1h9"></path></svg>
+                <span>Copy</span>
+              </button>
+              <button class="answer-action" type="button" data-action="share">
+                <svg class="icon share" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"></path><path d="M8 8l4-4 4 4"></path><path d="M5 14v5h14v-5"></path></svg>
+                <span>Share</span>
+              </button>
+            </div>
           </article>
         `;
 
         // Populate sources panel for normal fund answers
-        const fundFromAnswer = findFundBySourceUrl(data.source_url);
         if (fundFromAnswer) {
           state.activeFund = fundFromAnswer.short_name;
           populateSourcesPanel(fundFromAnswer);
+          // Active fund chip follows the fund of the latest factual answer
+          syncMobileFundChips();
         } else {
           populateSourcesPanel(data, fundDisplay, fetchDate);
         }
       }
 
       // Replace typing indicator with bot response
-      const typingEl = els.messages.querySelector('.typing-indicator');
+      const typingEl = messagesEl.querySelector('.typing-indicator');
       if (typingEl) {
         const msgBotEl = typingEl.closest('.msg-bot');
         if (msgBotEl) {
@@ -764,20 +1001,10 @@
         }
       }
       // Auto-scroll to newest
-      els.messages.scrollTop = els.messages.scrollHeight;
+      messagesEl.scrollTop = messagesEl.scrollHeight;
     } catch (e) {
       console.error('Render error:', e);
-      const typingEl = els.messages.querySelector('.typing-indicator');
-      if (typingEl) {
-        typingEl.outerHTML = `
-          <div class="msg-bot">
-            <div class="avatar">t<span class="dot" aria-hidden="true"></span></div>
-            <article class="info-card">
-              <p class="answer-text">Something went wrong. Please try again in a moment.</p>
-            </article>
-          </div>
-        `;
-      }
+      renderBotError('Something went wrong. Please try again in a moment.', messagesEl);
     }
   }
 
@@ -833,7 +1060,8 @@
   }
 
   function getSchemeName(shortName) {
-    const fund = state.fundsList.find(f => f.short_name === shortName);
+    const fundId = normalizeFundId(shortName);
+    const fund = state.fundsList.find(f => normalizeFundId(f.short_name) === fundId);
     return fund ? fund.scheme_name : null;
   }
 
