@@ -261,17 +261,18 @@
 
   function mobileFundFact(fund) {
     if (!fund) return '';
+    const expense = fund.expense_ratio ? `Expense ratio: ${formatFundValue('percent', fund.expense_ratio)}` : '';
     switch (fund.short_name) {
       case 'Large Cap':
       case 'Flexi Cap':
-        return fund.expense_ratio ? `Expense ratio: ${fund.expense_ratio}` : '';
+        return expense;
       case 'ELSS':
         if (fund.lock_in) return `${fund.lock_in.replace(/\s+years?$/i, '-year')} lock-in`;
-        return fund.expense_ratio ? `Expense ratio: ${fund.expense_ratio}` : '';
+        return expense;
       case 'Small Cap':
         return fund.exit_load ? `Exit load: ${fund.exit_load}` : '';
       case 'Balanced Advantage':
-        return fund.expense_ratio ? `Hybrid fund · Expense ratio: ${fund.expense_ratio}` : 'Hybrid fund';
+        return expense ? `Hybrid fund · ${expense}` : 'Hybrid fund';
       default:
         return '';
     }
@@ -796,7 +797,10 @@
     // Add chat main class
     mainEl.classList.add('is-chat-main');
 
-    // Determine fund display name from scheme
+    // Fund display name — GET /funds first, scheme map as fallback
+    const activeFundObj = state.activeFund
+      ? state.fundsList.find(f => normalizeFundId(f.short_name) === normalizeFundId(state.activeFund))
+      : null;
     const schemeToDisplay = {
       'HDFC Large Cap Fund - Direct Growth': 'HDFC Large Cap Fund',
       'HDFC Flexi Cap Fund (formerly HDFC Equity Fund) - Direct Growth': 'HDFC Flexi Cap Fund',
@@ -804,10 +808,13 @@
       'HDFC Small Cap Fund - Direct Growth': 'HDFC Small Cap Fund',
       'HDFC Balanced Advantage Fund - Direct Growth': 'HDFC Balanced Advantage Fund'
     };
-    const fundDisplay = scheme ? schemeToDisplay[scheme] : 'HDFC Mutual Fund FAQ';
+    const fundDisplay = ((activeFundObj && (activeFundObj.full_name || activeFundObj.display_name))
+      || (scheme ? schemeToDisplay[scheme] : '')
+      || getFundDisplayName(state.activeFund)
+      || 'HDFC Mutual Fund FAQ');
 
     // Use active fund for header if available, otherwise show default
-    const headerTitle = state.activeFund ? fundDisplay : 'HDFC Mutual Fund FAQ';
+    const headerTitle = state.activeFund ? formatFundValue('title', fundDisplay) : 'HDFC Mutual Fund FAQ';
     const headerSubtitle = state.activeFund ? 'Direct Plan · Growth' : 'Ask about 5 HDFC funds';
 
     // Render full chat structure matching design
@@ -931,8 +938,8 @@
       const fundDisplay = fundNames[data.fund] || data.fund_display || 'HDFC Large Cap Fund';
       const fundFromAnswer = findFundBySourceUrl(data.source_url);
 
-      // Format date as "27 Sep 2026"
-      const fetchDate = data.fetched_date || '27 Sep 2026';
+      // Date already display-ready ("27 Sep 2026"); pass it through unchanged
+      const fetchDate = formatFundValue('date', data.fetched_date || '27 Sep 2026');
 
       // Build answer article
       let articleHtml = '';
@@ -966,9 +973,12 @@
         }
       } else {
         // Normal fund answer
-        // Fund tag (mobile chat) — "<fund full name> · Direct Growth"
+        // Fund tag (mobile chat) — fund name from GET /funds + plan label
         const tagShortName = fundFromAnswer ? fundFromAnswer.short_name : state.activeFund;
-        const tagFundName = tagShortName ? getFundDisplayName(tagShortName) : '';
+        const tagFund = fundFromAnswer
+          || state.fundsList.find(f => normalizeFundId(f.short_name) === normalizeFundId(tagShortName));
+        const tagFundName = formatFundValue('title',
+          (tagFund && (tagFund.full_name || tagFund.display_name)) || getFundDisplayName(tagShortName));
         const fundTagHtml = tagFundName
           ? `<span class="answer-fund-tag">${escapeHtml(tagFundName)} · Direct Growth</span>`
           : '';
@@ -1052,6 +1062,49 @@
     }
   }
 
+  // ---------- Shared /funds value formatting ----------
+  // GET /funds already returns display-ready values: display_name
+  // "HDFC Small Cap Fund (Direct Growth)", aum "₹41,890.86 crore",
+  // min_sip "₹100", expense_ratio "1.03%", fetched_date "27 Sep 2026".
+  // The Source panel, the Funds cards, the chat header and the answer fund
+  // tags all render through this ONE helper. Each case only fills in what a
+  // value is missing, so a value that is already formatted never gets the
+  // prefix or suffix added a second time.
+  const FUND_PLAN_TAG = '(Direct Growth)';
+  const FUND_PLAN_RE = /\s*\(\s*direct\s+growth\s*\)/gi;
+
+  function formatFundValue(kind, value) {
+    const text = value === null || value === undefined ? '' : String(value).trim();
+    if (!text) return '';
+
+    switch (kind) {
+      case 'title': {
+        // Keep the plan tag exactly once — and only if the value has one.
+        const hasPlan = /\(\s*direct\s+growth\s*\)/i.test(text);
+        if (!hasPlan) return text;
+        const base = text.replace(FUND_PLAN_RE, ' ').replace(/\s+/g, ' ').trim();
+        return base ? `${base} ${FUND_PLAN_TAG}` : FUND_PLAN_TAG;
+      }
+      case 'aum': {
+        const base = text.replace(/(?:\s*crore)+\s*$/i, '').replace(/^₹+/, '').trim();
+        return base ? `₹${base} crore` : '';
+      }
+      case 'sip': {
+        const base = text.replace(/^₹+/, '').trim();
+        return base ? `₹${base}` : '';
+      }
+      case 'percent': {
+        const base = text.replace(/%+$/, '').trim();
+        return base ? `${base}%` : '';
+      }
+      case 'date':
+        // /funds already returns "27 Sep 2026"; only an ISO date needs parsing.
+        return /^\d{4}-\d{2}-\d{2}$/.test(text) ? formatDate(text) : text;
+      default:
+        return text;
+    }
+  }
+
   function populateSourcesPanel(fund) {
     const fundCardEl = document.getElementById('source-fund-card');
     const factsEl = document.getElementById('source-facts');
@@ -1060,22 +1113,23 @@
     if (!fund) return;
 
     if (fundCardEl) {
-      const fetchDate = fund.fetched_date ? formatDate(fund.fetched_date) : 'Not on source page';
+      const title = formatFundValue('title', fund.display_name || fund.full_name);
+      const fetchDate = fund.fetched_date ? formatFundValue('date', fund.fetched_date) : NOT_ON_SOURCE;
       fundCardEl.innerHTML = `
-        <div class="sp-fund-title">${escapeHtml(fund.display_name)} (Direct Growth)</div>
+        ${title ? `<div class="sp-fund-title">${escapeHtml(title)}</div>` : ''}
         <div class="sp-fund-meta">groww.in · Updated ${escapeHtml(fetchDate)}</div>
       `;
     }
 
     if (factsEl) {
-      const managers = (fund.fund_managers || []).map(m => m.name).join(', ') || 'Not on source page';
+      const managers = (fund.fund_managers || []).map(m => m.name).join(', ') || NOT_ON_SOURCE;
       const factRows = [
-        { label: 'Expense ratio', value: fund.expense_ratio || 'Not on source page' },
-        { label: 'Exit load', value: fund.exit_load || 'Not on source page' },
-        { label: 'Minimum SIP', value: fund.min_sip ? `₹${fund.min_sip}` : 'Not on source page' },
-        { label: 'Riskometer', value: fund.riskometer || 'Not on source page' },
-        { label: 'Benchmark', value: fund.benchmark || 'Not on source page' },
-        { label: 'Fund size', value: fund.aum ? `₹${fund.aum} crore` : 'Not on source page' },
+        { label: 'Expense ratio', value: fund.expense_ratio ? formatFundValue('percent', fund.expense_ratio) : NOT_ON_SOURCE },
+        { label: 'Exit load', value: fund.exit_load || NOT_ON_SOURCE },
+        { label: 'Minimum SIP', value: fund.min_sip ? formatFundValue('sip', fund.min_sip) : NOT_ON_SOURCE },
+        { label: 'Riskometer', value: fund.riskometer || NOT_ON_SOURCE },
+        { label: 'Benchmark', value: fund.benchmark || NOT_ON_SOURCE },
+        { label: 'Fund size', value: fund.aum ? formatFundValue('aum', fund.aum) : NOT_ON_SOURCE },
         { label: 'Fund managers', value: managers }
       ];
 
@@ -1204,7 +1258,7 @@
 
   function fetchedDateLabel() {
     const raw = (state.fundsList[0] || {}).fetched_date || '27 Sep 2026';
-    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? formatDate(raw) : raw;
+    return formatFundValue('date', raw);
   }
 
   function factValue(value) {
@@ -1213,23 +1267,23 @@
   }
 
   function fundCardHtml(id, fund) {
-    const name = (fund && (fund.full_name || fund.display_name)) || getFundDisplayName(id) || '';
+    const name = formatFundValue('title', (fund && (fund.full_name || fund.display_name)) || getFundDisplayName(id) || '');
     const category = (fund && fund.category) || NOT_ON_SOURCE;
     const managers = (fund && fund.fund_managers && fund.fund_managers.length)
       ? fund.fund_managers.map(m => m.name).join(', ')
       : '';
 
     const rows = [
-      { label: 'Expense ratio', value: fund ? fund.expense_ratio : '' },
+      { label: 'Expense ratio', value: fund ? formatFundValue('percent', fund.expense_ratio) : '' },
       { label: 'Exit load', value: fund ? fund.exit_load : '' },
-      { label: 'Minimum SIP', value: fund ? fund.min_sip : '' }
+      { label: 'Minimum SIP', value: fund ? formatFundValue('sip', fund.min_sip) : '' }
     ];
     // Lock-in only when the source page has one
     if (fund && fund.lock_in) rows.push({ label: 'Lock-in', value: fund.lock_in });
     rows.push(
       { label: 'Riskometer', value: fund ? fund.riskometer : '' },
       { label: 'Benchmark', value: fund ? fund.benchmark : '' },
-      { label: 'Fund size', value: fund ? fund.aum : '' },
+      { label: 'Fund size', value: fund ? formatFundValue('aum', fund.aum) : '' },
       { label: 'Fund managers', value: managers }
     );
 
@@ -1317,7 +1371,7 @@
 
     sourcesEl.innerHTML = orderedFunds().map(({ id, fund }) => {
       const url = fund && fund.source_url ? fund.source_url : '';
-      const label = (fund && (fund.full_name || fund.display_name)) || getFundDisplayName(id);
+      const label = formatFundValue('title', (fund && (fund.full_name || fund.display_name)) || getFundDisplayName(id));
       if (!url) return '';
       return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>`;
     }).join('');
