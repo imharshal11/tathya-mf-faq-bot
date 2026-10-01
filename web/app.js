@@ -837,7 +837,6 @@
   }
 
   function answerFactLabel(data) {
-    if (data.title) return data.title.toLowerCase();
     const q = (data.question || '').toLowerCase();
     if (q.includes('expense ratio')) return 'expense ratio';
     if (q.includes('exit load')) return 'exit load';
@@ -847,6 +846,38 @@
     if (q.includes('benchmark')) return 'benchmark';
     if (q.includes('fund size') || q.includes('aum')) return 'fund size';
     return '';
+  }
+
+  // Fund-manager answers never carry a big number
+  function isManagerQuestion(data) {
+    const q = (data.question || '').toLowerCase();
+    return q.includes('manage') || q.includes('manager') || q.includes('who runs');
+  }
+
+  // ONE detection function shared by mobile and desktop chat:
+  // a factual answer gets a big number only when it has exactly one key
+  // figure — a % value, a ₹ amount or "X years" — and a known topic label.
+  const ANSWER_FIGURE_RE = /(₹\s?[\d][\d,]*(?:\.\d+)?|\b\d+(?:\.\d+)?\s*years?\b|\b\d+(?:\.\d+)?%)/gi;
+
+  function answerBigFigure(data) {
+    if (isManagerQuestion(data)) return null;
+    const label = answerFactLabel(data);
+    if (!label) return null;
+    const answer = data.answer || '';
+    const figures = answer.match(ANSWER_FIGURE_RE);
+    if (!figures || figures.length !== 1) return null;
+    return { value: figures[0].trim().replace(/\s+/g, ' '), label };
+  }
+
+  function bigNumberRowHtml(data) {
+    const figure = answerBigFigure(data);
+    if (!figure) return '';
+    return `
+            <div class="answer-number-row">
+              <span class="answer-number">${escapeHtml(figure.value)}</span>
+              <span class="answer-label">${escapeHtml(figure.label)}</span>
+            </div>
+          `;
   }
 
   function renderAnswer(data, messagesEl) {
@@ -913,28 +944,12 @@
           ? `<span class="answer-fund-tag">${escapeHtml(tagFundName)} · Direct Growth</span>`
           : '';
 
-        // Big number row for single number/percent answers (mobile chat only —
-        // desktop answers carry no title, so the desktop card stays unchanged)
-        let bigNumberHtml = '';
-        if (isMobileChatOpen()) {
-          const valueMatch = data.answer.match(/([\d.]+%)/);
-          const label = answerFactLabel(data);
-          const hasOtherDigits = /\d/.test(data.answer.replace(/[\d.]+%/g, ''));
-          if (valueMatch && label && !hasOtherDigits) {
-            bigNumberHtml = `
-              <div class="answer-number-row">
-                <span class="answer-number">${escapeHtml(valueMatch[1])}</span>
-                <span class="answer-label">${escapeHtml(label)}</span>
-              </div>
-            `;
-          }
-        }
+        // Big number row — ONE detection function shared by mobile and desktop
+        const bigNumberHtml = bigNumberRowHtml(data);
 
         // Fund manager chips - ONLY for manager-related questions
         let managerChipsHtml = '';
-        const question = (data.question || '').toLowerCase();
-        const isManagerQuestion = question.includes('manage') || question.includes('manager') || question.includes('who runs');
-        if (isManagerQuestion && fundFromAnswer && fundFromAnswer.fund_managers && fundFromAnswer.fund_managers.length > 0) {
+        if (isManagerQuestion(data) && fundFromAnswer && fundFromAnswer.fund_managers && fundFromAnswer.fund_managers.length > 0) {
           const chips = fundFromAnswer.fund_managers.map(m => `
               <span class="fund-manager-chip">
                 <span class="name">${escapeHtml(m.name)}</span>

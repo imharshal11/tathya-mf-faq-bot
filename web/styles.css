@@ -28,8 +28,8 @@ a:hover { color: #075985; }
   clip: rect(0 0 0 0);
 }
 
-/* ---------- Desktop Shell (min-width: 1024px) ---------- */
-@media (min-width: 1024px) {
+/* ---------- Desktop shell + main (min-width: 768px): shared by tablet and desktop ---------- */
+@media (min-width: 768px) {
   .mobile-shell { display: none !important; }
   .app { display: grid !important; }
 
@@ -74,11 +74,6 @@ a:hover { color: #075985; }
     display: grid;
     gap: 20px;
     min-height: 0;
-    grid-template-columns: 280px minmax(0, 1fr);
-  }
-
-  .workspace.is-chat {
-    grid-template-columns: 280px minmax(0, 1fr) 320px;
   }
 
   .workspace.is-chat .main {
@@ -87,11 +82,6 @@ a:hover { color: #075985; }
 
   .sources-panel {
     display: none !important;
-  }
-
-  .workspace.is-chat .sources-panel {
-    display: flex !important;
-    flex-direction: column;
   }
 
   .sidebar, .main, .sources-panel {
@@ -1010,10 +1000,6 @@ a:hover { color: #075985; }
     min-height: 0;
   }
 
-  .workspace.is-chat .sources-panel {
-    display: flex !important;
-  }
-
   .sp-label {
     font-size: 12px;
     font-weight: 500;
@@ -1228,344 +1214,31 @@ a:hover { color: #075985; }
   }
 }
 
-/* ---------- Tablet (768px–1023px) — desktop shell but 2 columns ---------- */
-@media (min-width: 768px) and (max-width: 1023px) {
-  .mobile-shell { display: none !important; }
-  .app { display: grid !important; }
-
-  .app {
-    height: 100vh;
-    padding: 20px;
-    background: #EEF3F9;
-    display: grid;
-    grid-template-rows: 64px minmax(0, 1fr);
-    gap: 20px;
-    overflow: hidden;
-  }
-
-  .topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 4px;
-    position: static;
-  }
-
-  .topbar .brand {
-    width: 280px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .topbar .nav-pill {
-    margin: 0 auto;
-  }
-
-  .topbar .actions {
-    width: 420px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 10px;
-  }
-
+/* ---------- Desktop only (min-width: 1024px): 3rd column + Source panel ---------- */
+@media (min-width: 1024px) {
   .workspace {
-    display: grid;
-    gap: 20px;
-    min-height: 0;
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+
+  .workspace.is-chat {
+    grid-template-columns: 280px minmax(0, 1fr) 320px;
+  }
+
+  .workspace.is-chat .sources-panel {
+    display: flex !important;
+    flex-direction: column;
+  }
+}
+
+/* ---------- Tablet (768px–1023px): desktop shell, always 2 columns ---------- */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .workspace {
     grid-template-columns: 240px minmax(0, 1fr);
   }
 
   .sources-panel { display: none !important; }
 
-  .sidebar, .main {
-    min-height: 0;
-    background: #FFFFFF;
-    border-radius: 24px;
-  }
-
-  .main {
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .messages {
-    flex: 1;
-    overflow-y: auto;
-  }
-
-  /* Reuse same topbar styles as desktop */
-  .logo-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    background: #0B2A5B;
-    color: #FFFFFF;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Poppins', sans-serif;
-    font-weight: 700;
-    font-size: 24px;
-    line-height: 1;
-    position: relative;
-    flex-shrink: 0;
-  }
-
-  .logo-dot {
-    position: absolute;
-    right: 8px;
-    top: 8px;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #0EA5E9;
-  }
-
-  .wordmark {
-    font-family: 'Poppins', sans-serif;
-    font-weight: 700;
-    font-size: 24px;
-    letter-spacing: -0.5px;
-    line-height: 1;
-  }
-  .wordmark .n { color: #0B2A5B; }
-  .wordmark .s { color: #0EA5E9; }
-
-  .nav-pill {
-    display: flex;
-    gap: 4px;
-    padding: 5px;
-    background: #FFFFFF;
-    border: 1px solid #E3E8EF;
-    border-radius: 999px;
-  }
-
-  .nav-pill button {
-    height: 40px;
-    padding: 0 20px;
-    border-radius: 999px;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    background: transparent;
-    border: none;
-    color: #475569;
-    font-weight: 500;
-    cursor: pointer;
-  }
-
-  .nav-pill button[aria-selected="true"] {
-    background: #EAF2FF;
-    color: #0B2A5B;
-    font-weight: 700;
-  }
-
-  .trust-pill {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 9px 14px;
-    border-radius: 999px;
-    background: #E0F2FE;
-    color: #075985;
-    font-size: 13px;
-    font-weight: 500;
-    white-space: nowrap;
-  }
-
-  .trust-pill .icon {
-    width: 15px;
-    height: 15px;
-    flex-shrink: 0;
-  }
-
-  .new-chat-btn {
-    height: 44px;
-    padding: 0 18px;
-    border-radius: 999px;
-    background: #0B2A5B;
-    color: #FFFFFF;
-    font-size: 14px;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    border: none;
-    cursor: pointer;
-  }
-
-  .new-chat-btn .icon {
-    width: 17px;
-    height: 17px;
-    flex-shrink: 0;
-  }
-
-  .sidebar {
-    padding: 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-  }
-
-  .funds-label {
-    font-size: 12px;
-    font-weight: 500;
-    color: #64748B;
-    padding: 0 10px 6px;
-  }
-
-  .fund-item {
-    background: transparent;
-    border: none;
-    border-radius: 12px;
-    padding: 9px 10px;
-    text-align: left;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    width: 100%;
-  }
-
-  .fund-item:hover { background: #F6F8FB; }
-  .fund-item.active { background: #EAF2FF; }
-  .fund-item.active .fund-name { color: #0B2A5B; }
-
-  .swatch {
-    width: 12px;
-    height: 12px;
-    border-radius: 4px;
-    border: 1px solid #CBD5E1;
-    flex-shrink: 0;
-  }
-
-  .fund-item.large-cap .swatch { background: #DBEEFD; }
-  .fund-item.flexi-cap .swatch { background: #E3E6FB; }
-  .fund-item.elss .swatch { background: #D5F5EE; }
-  .fund-item.small-cap .swatch { background: #FCEFCB; }
-  .fund-item.balanced .swatch { background: #E2E8F0; }
-
-  .fund-info {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    min-width: 0;
-  }
-
-  .fund-name {
-    font-size: 14px;
-    font-weight: 700;
-    color: #0F172A;
-    white-space: normal;
-    overflow: visible;
-    text-overflow: unset;
-  }
-
-  .fund-subtitle {
-    font-size: 12px;
-    color: #64748B;
-    white-space: normal;
-    overflow: visible;
-    text-overflow: unset;
-  }
-
-  .recent-label {
-    font-size: 12px;
-    font-weight: 500;
-    color: #64748B;
-    padding: 0 10px 6px;
-  }
-
-  .recent-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .recent-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    text-align: left;
-    padding: 9px 10px;
-    border-radius: 10px;
-    background: transparent;
-    border: none;
-    font-size: 13px;
-    color: #334155;
-    cursor: pointer;
-  }
-
-  .recent-item:hover { background: #F6F8FB; }
-  .recent-item .icon {
-    width: 15px;
-    height: 15px;
-    color: #64748B;
-    flex-shrink: 0;
-  }
-  .recent-item span {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .spacer { flex-grow: 1; }
-
-  .built-by {
-    background: #F3F7FC;
-    border-radius: 18px;
-    padding: 14px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .built-by .avatar {
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    background: #0B2A5B;
-    color: #FFFFFF;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 700;
-    font-size: 13px;
-    flex-shrink: 0;
-  }
-
-  .built-by-text {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    flex-grow: 1;
-  }
-
-  .built-by-label { font-size: 12px; color: #64748B; }
-  .built-by-name { font-size: 14px; font-weight: 700; color: #0F172A; }
-
-  .social-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: #FFFFFF;
-    border: 1px solid #E3E8EF;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    cursor: pointer;
-  }
-  .social-btn:hover { border-color: #94A3B8; }
-  .social-btn.linkedin .icon { width: 16px; height: 16px; stroke: #0A66C2; }
-  .social-btn.github .icon { width: 16px; height: 16px; stroke: #0F172A; }
-
-  .icon { flex-shrink: 0; display: block; }
+  .main { padding: 28px; }
 }
 
 /* ---------- Mobile-only chat affordances (hidden on desktop / tablet) ---------- */
