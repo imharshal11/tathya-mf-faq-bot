@@ -1,4 +1,4 @@
-<p align="center">
+﻿<p align="center">
   <img src="web/brand/wordmark.svg" alt="Tathya" height="64">
 </p>
 
@@ -89,7 +89,7 @@ This approach is called **RAG** (retrieval-augmented generation): *look it up fi
 
 **In plain words:** think of airport security. There isn't just one check. There's a ticket check, a bag scan and a final gate check. If one misses something, the next catches it. Tathya has **4 checks**:
 
-![Every question passes checks before and after the AI writes](Docx/screenshots/safety-flow.png)
+![Every question passes checks before and after the AI writes](Docx/screenshots/safety-flow.jpeg)
 
 | # | Check | What it does | Example it catches |
 | --- | --- | --- | --- |
